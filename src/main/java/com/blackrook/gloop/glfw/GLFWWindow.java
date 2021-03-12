@@ -1,6 +1,14 @@
 package com.blackrook.gloop.glfw;
 
+import java.awt.Dimension;
+import java.awt.Image;
+import java.awt.Point;
+import java.nio.IntBuffer;
+import java.util.List;
+import java.util.Vector;
+
 import org.lwjgl.glfw.GLFW;
+import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 
 /**
@@ -13,6 +21,9 @@ public class GLFWWindow extends GLFWHandle
 	private long handle;
 	/** Is this allocated? */
 	private boolean allocated;
+	
+	/** List of event listeners. */
+	private List<Listener> listeners;
 
 	/**
 	 * Windows hints for the next window created.
@@ -441,9 +452,89 @@ public class GLFWWindow extends GLFWHandle
 
 	}
 	
+	// Set up structures.
+	private GLFWWindow()
+	{
+		this.listeners = new Vector<>(4);
+	}
+	
+	// Init listeners.
+	private void initListeners()
+	{
+		GLFW.glfwSetWindowCloseCallback(handle, (handle) -> 
+		{
+			for (int i = 0; i < listeners.size(); i++)
+				listeners.get(i).onClose(this);
+		});
+		GLFW.glfwSetWindowRefreshCallback(handle, (handle) -> 
+		{
+			for (int i = 0; i < listeners.size(); i++)
+				listeners.get(i).onRefresh(this);
+		});
+		GLFW.glfwSetWindowFocusCallback(handle, (handle, state) -> 
+		{
+			if (state)
+			{
+				for (int i = 0; i < listeners.size(); i++)
+					listeners.get(i).onFocus(this);
+			}
+			else
+			{
+				for (int i = 0; i < listeners.size(); i++)
+					listeners.get(i).onBlur(this);
+			}
+		});
+		GLFW.glfwSetWindowIconifyCallback(handle, (handle, state) -> 
+		{
+			if (state)
+			{
+				for (int i = 0; i < listeners.size(); i++)
+					listeners.get(i).onIconify(this);
+			}
+			else
+			{
+				for (int i = 0; i < listeners.size(); i++)
+					listeners.get(i).onRestore(this);
+			}
+		});
+		GLFW.glfwSetWindowMaximizeCallback(handle, (handle, state) -> 
+		{
+			if (state)
+			{
+				for (int i = 0; i < listeners.size(); i++)
+					listeners.get(i).onMaximize(this);
+			}
+			else
+			{
+				for (int i = 0; i < listeners.size(); i++)
+					listeners.get(i).onRestore(this);
+			}
+		});
+		GLFW.glfwSetWindowPosCallback(handle, (handle, x, y) -> 
+		{
+			for (int i = 0; i < listeners.size(); i++)
+				listeners.get(i).onPositionChange(this, x, y);
+		});
+		GLFW.glfwSetWindowSizeCallback(handle, (handle, width, height) -> 
+		{
+			for (int i = 0; i < listeners.size(); i++)
+				listeners.get(i).onSizeChange(this, width, height);
+		});
+		GLFW.glfwSetWindowContentScaleCallback(handle, (handle, width, height) -> 
+		{
+			for (int i = 0; i < listeners.size(); i++)
+				listeners.get(i).onContentScaleChange(this, width, height);
+		});
+		GLFW.glfwSetFramebufferSizeCallback(handle, (handle, x, y) -> 
+		{
+			for (int i = 0; i < listeners.size(); i++)
+				listeners.get(i).onFramebufferChange(this, x, y);
+		});
+	}
+	
 	/**
 	 * Creates a new GLFW window.
-	 * This must only be called from the main thread.
+	 * <p><b>This must only be called from the main thread.</b>
 	 * @param title the window title.
 	 * @param width the window's initial width.
 	 * @param height the window's initial height.
@@ -452,14 +543,16 @@ public class GLFWWindow extends GLFWHandle
 	 */
 	public GLFWWindow(String title, int width, int height) 
 	{
-		GLFWInit.init(); // init GLFW if not already (only happens once).
+		this();
+		GLFWContext.init(); // init GLFW if not already (only happens once).
 		this.handle = GLFW.glfwCreateWindow(width, height, title, MemoryUtil.NULL, MemoryUtil.NULL);
 		this.allocated = true;
+		initListeners();
 	}
 		
 	/**
 	 * Creates a new GLFW window.
-	 * This must only be called from the main thread.
+	 * <p><b>This must only be called from the main thread.</b>
 	 * @param sharedWindow the window to share OpenGL resources with.
 	 * @param title the window title.
 	 * @param width the window's initial width.
@@ -469,14 +562,16 @@ public class GLFWWindow extends GLFWHandle
 	 */
 	public GLFWWindow(GLFWWindow sharedWindow, String title, int width, int height) 
 	{
-		GLFWInit.init(); // init GLFW if not already (only happens once).
+		this();
+		GLFWContext.init(); // init GLFW if not already (only happens once).
 		this.handle = GLFW.glfwCreateWindow(width, height, title, MemoryUtil.NULL, sharedWindow.getHandle());
 		this.allocated = true;
+		initListeners();
 	}
 		
 	/**
 	 * Creates a new GLFW window.
-	 * This must only be called from the main thread.
+	 * <p><b>This must only be called from the main thread.</b>
 	 * @param monitor the monitor to use for fullscreen mode.
 	 * @param title the window title.
 	 * @param width the window's initial width.
@@ -486,14 +581,16 @@ public class GLFWWindow extends GLFWHandle
 	 */
 	public GLFWWindow(GLFWMonitor monitor, String title, int width, int height) 
 	{
-		GLFWInit.init(); // init GLFW if not already (only happens once).
+		this();
+		GLFWContext.init(); // init GLFW if not already (only happens once).
 		this.handle = GLFW.glfwCreateWindow(width, height, title, monitor.getHandle(), MemoryUtil.NULL);
 		this.allocated = true;
+		initListeners();
 	}
 		
 	/**
 	 * Creates a new GLFW window.
-	 * This must only be called from the main thread.
+	 * <p><b>This must only be called from the main thread.</b>
 	 * @param monitor the monitor to use for fullscreen mode.
 	 * @param sharedWindow the window to share OpenGL resources with.
 	 * @param title the window title.
@@ -504,9 +601,11 @@ public class GLFWWindow extends GLFWHandle
 	 */
 	public GLFWWindow(GLFWMonitor monitor, GLFWWindow sharedWindow, String title, int width, int height) 
 	{
-		GLFWInit.init(); // init GLFW if not already (only happens once).
+		this();
+		GLFWContext.init(); // init GLFW if not already (only happens once).
 		this.handle = GLFW.glfwCreateWindow(width, height, title, monitor.getHandle(), sharedWindow.getHandle());
 		this.allocated = true;
+		initListeners();
 	}
 		
 	@Override
@@ -530,5 +629,271 @@ public class GLFWWindow extends GLFWHandle
 			allocated = false;
 		}
 	}
+	
+	/**
+	 * Sets this window's title.
+	 * <p><b>This must only be called from the main thread.</b>
+	 * @param title the new title.
+	 */
+	public void setTitle(String title)
+	{
+		GLFW.glfwSetWindowTitle(handle, title);
+	}
+	
+	/**
+	 * Sets this window's icon. 
+	 * Only works in non-macOS environments.
+	 * <p><b>This must only be called from the main thread.</b>
+	 * @param icon the new title.
+	 * @see GLFW#glfwSetWindowIcon(long, Buffer)
+	 */
+	public void setIcon(Image icon)
+	{
+		// TODO: Support this.
+		// glfwSetWindowIcon(long, Buffer)
+		throw new UnsupportedOperationException("Not supported yet.");
+	}
+	
+	/**
+	 * Iconifies the window.
+	 * Fires an event to listeners, but only when GLFW's Poll Events function is called. 
+	 * <p><b>This must only be called from the main thread.</b>
+	 */
+	public void iconify()
+	{
+		GLFW.glfwIconifyWindow(handle);
+	}
 
+	/**
+	 * Restores the window.
+	 * Fires an event to listeners, but only when GLFW's Poll Events function is called. 
+	 * <p><b>This must only be called from the main thread.</b>
+	 */
+	public void restore()
+	{
+		GLFW.glfwRestoreWindow(handle);
+	}
+
+	/**
+	 * Maximizes the window.
+	 * Fires an event to listeners, but only when GLFW's Poll Events function is called. 
+	 * <p><b>This must only be called from the main thread.</b>
+	 */
+	public void maximize()
+	{
+		GLFW.glfwMaximizeWindow(handle);
+	}
+
+	/**
+	 * Sets the visibility of the window.
+	 * Fires an event to listeners, but only when GLFW's Poll Events function is called. 
+	 * <p><b>This must only be called from the main thread.</b>
+	 * @param state true to show, false to hide.
+	 */
+	public void setVisible(boolean state)
+	{
+		if (state)
+			GLFW.glfwShowWindow(handle);
+		else
+			GLFW.glfwHideWindow(handle);
+	}
+
+	/**
+	 * Requests focus on the window.
+	 * Fires an event to listeners, but only when GLFW's Poll Events function is called. 
+	 * <p><b>This must only be called from the main thread.</b>
+	 */
+	public void focus()
+	{
+		GLFW.glfwFocusWindow(handle);
+	}
+
+	/**
+	 * Signals user attention from this window.
+	 * Fires an event to listeners, but only when GLFW's Poll Events function is called. 
+	 * <p><b>This must only be called from the main thread.</b>
+	 */
+	public void requestAttention()
+	{
+		GLFW.glfwRequestWindowAttention(handle);
+	}
+
+	/**
+	 * Checks the closing flag of this window.
+	 * <p>This can be called from any thread.
+	 * @return true if set, false if not.
+	 */
+	public boolean isClosing()
+	{
+		return GLFW.glfwWindowShouldClose(handle);
+	}
+
+	/**
+	 * Sets the closing flag of this window.
+	 * <p>This can be called from any thread.
+	 * @param state the closing state.
+	 */
+	public void setClosing(boolean state)
+	{
+		GLFW.glfwSetWindowShouldClose(handle, state);
+	}
+
+	/**
+	 * Sets this window's position (upper-left coordinate).
+	 * <p><b>This must only be called from the main thread.</b>
+	 * @param x the x-coordinate.
+	 * @param y the y-coordinate.
+	 * @see GLFW#glfwSetWindowPos(long, int, int)
+	 */
+	public void setPosition(int x, int y)
+	{
+		GLFW.glfwSetWindowPos(handle, x, y);
+	}
+	
+	/**
+	 * Gets this window's position (upper-left coordinate).
+	 * <p><b>This must only be called from the main thread.</b>
+	 * @return a Point representing the current window position.
+	 */
+	public Point getPosition()
+	{
+		try (MemoryStack stack = MemoryStack.stackPush())
+		{
+			IntBuffer buf1 = stack.mallocInt(1);
+			IntBuffer buf2 = stack.mallocInt(1);
+			GLFW.glfwGetWindowPos(handle, buf1, buf2);
+			return new Point(buf1.get(0), buf2.get(0));
+		}
+	}
+
+	/**
+	 * Sets this window's size.
+	 * <p><b>This must only be called from the main thread.</b>
+	 * @param width the new width in pixels.
+	 * @param height the new height in pixels.
+	 */
+	public void setSize(int width, int height)
+	{
+		GLFW.glfwSetWindowPos(handle, width, height);
+	}
+	
+	/**
+	 * Gets this window's size.
+	 * <p><b>This must only be called from the main thread.</b>
+	 * @return a Dimension representing the current window size/dimensions.
+	 */
+	public Dimension getSize()
+	{
+		try (MemoryStack stack = MemoryStack.stackPush())
+		{
+			IntBuffer buf1 = stack.mallocInt(1);
+			IntBuffer buf2 = stack.mallocInt(1);
+			GLFW.glfwGetWindowSize(handle, buf1, buf2);
+			return new Dimension(buf1.get(0), buf2.get(0));
+		}
+	}
+	
+	/*
+		TODO: All of this stuff.
+		
+		glfwSetWindowOpacity(long, float)
+		glfwSetWindowSizeLimits(long, int, int, int, int)
+		glfwSetWindowAspectRatio(long, int, int)
+		glfwSetWindowAttrib(long, int, int)
+
+		glfwGetWindowOpacity(long)
+		glfwGetFramebufferSize(long, IntBuffer, IntBuffer)
+		glfwGetWindowFrameSize(long, IntBuffer, IntBuffer, IntBuffer, IntBuffer)
+		glfwGetWindowAttrib(long, int)
+
+		glfwSetWindowMonitor(long, long, int, int, int, int, int)
+		glfwSetWindowUserPointer(long, long)
+		
+		glfwGetWindowMonitor(long)
+		glfwGetWindowUserPointer(long)
+
+		glfwGetWindowContentScale(long, FloatBuffer, FloatBuffer)
+	 */
+
+	/**
+	 * A window event listener interface. 
+	 */
+	public static interface Listener
+	{
+		/**
+		 * Called on a window close event.
+		 * @param window the source window.
+		 */
+		void onClose(GLFWWindow window);
+		
+		/**
+		 * Called on a window refresh event.
+		 * @param window the source window.
+		 */
+		void onRefresh(GLFWWindow window);
+		
+		/**
+		 * Called on a window focus event.
+		 * @param window the source window.
+		 */
+		void onFocus(GLFWWindow window);
+		
+		/**
+		 * Called on a window blur event.
+		 * @param window the source window.
+		 */
+		void onBlur(GLFWWindow window);
+		
+		/**
+		 * Called on a window iconified event.
+		 * @param window the source window.
+		 */
+		void onIconify(GLFWWindow window);
+		
+		/**
+		 * Called on a window restore event.
+		 * @param window the source window.
+		 */
+		void onRestore(GLFWWindow window);
+		
+		/**
+		 * Called on a window maximized event.
+		 * @param window the source window.
+		 */
+		void onMaximize(GLFWWindow window);
+		
+		/**
+		 * Called on a window position change event.
+		 * @param window the source window.
+		 * @param x the new x-coordinate (upper-left corner).
+		 * @param y the new y-coordinate (upper-left corner).
+		 */
+		void onPositionChange(GLFWWindow window, int x, int y);
+
+		/**
+		 * Called on a window size change event.
+		 * @param window the source window.
+		 * @param width the new width.
+		 * @param height the new height.
+		 */
+		void onSizeChange(GLFWWindow window, int width, int height);
+
+		/**
+		 * Called on a window frame buffer change event.
+		 * @param width the new width.
+		 * @param height the new height.
+		 * @param window the source window.
+		 */
+		void onFramebufferChange(GLFWWindow window, int width, int height);
+		
+		/**
+		 * Called on a window content scale change event.
+		 * @param width the new width.
+		 * @param x the x-scaling.
+		 * @param y the y-scaling.
+		 */
+		void onContentScaleChange(GLFWWindow window, float x, float y);
+		
+	}
+	
 }

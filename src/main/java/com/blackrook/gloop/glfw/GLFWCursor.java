@@ -67,7 +67,7 @@ public class GLFWCursor extends GLFWHandle
 	 */
 	private GLFWCursor(long handle) 
 	{
-		GLFWInit.init(); // init GLFW if not already (only happens once).
+		GLFWContext.init(); // init GLFW if not already (only happens once).
 		this.handle = handle;
 		this.allocated = true;
 	}
