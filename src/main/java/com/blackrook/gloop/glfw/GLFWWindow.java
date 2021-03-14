@@ -1,15 +1,24 @@
 package com.blackrook.gloop.glfw;
 
 import java.awt.Dimension;
-import java.awt.Image;
 import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.nio.ByteBuffer;
+import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Vector;
 
+import org.lwjgl.glfw.Callbacks;
 import org.lwjgl.glfw.GLFW;
+import org.lwjgl.glfw.GLFWDropCallback;
+import org.lwjgl.glfw.GLFWImage;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
+
+import com.blackrook.gloop.glfw.struct.Pair2F;
 
 /**
  * A GLFW window instance.
@@ -21,9 +30,194 @@ public class GLFWWindow extends GLFWHandle
 	private long handle;
 	/** Is this allocated? */
 	private boolean allocated;
+	/** Assigned monitor. */
+	private GLFWMonitor monitor;
 	
-	/** List of event listeners. */
-	private List<Listener> listeners;
+	/** List of window event listeners. */
+	private List<WindowListener> windowListeners;
+	/** List of input event listeners. */
+	private List<InputListener> inputListeners;
+	/** List of file drop event listeners. */
+	private List<DropListener> dropListeners;
+
+	/**
+	 * A window event listener interface. 
+	 */
+	public static interface WindowListener
+	{
+		/**
+		 * Called on a window close event.
+		 * @param window the source window.
+		 */
+		void onClose(GLFWWindow window);
+		
+		/**
+		 * Called on a window refresh event.
+		 * @param window the source window.
+		 */
+		void onRefresh(GLFWWindow window);
+		
+		/**
+		 * Called on a window focus event.
+		 * @param window the source window.
+		 */
+		void onFocus(GLFWWindow window);
+		
+		/**
+		 * Called on a window blur event.
+		 * @param window the source window.
+		 */
+		void onBlur(GLFWWindow window);
+		
+		/**
+		 * Called on a window iconified event.
+		 * @param window the source window.
+		 */
+		void onIconify(GLFWWindow window);
+		
+		/**
+		 * Called on a window restore event.
+		 * @param window the source window.
+		 */
+		void onRestore(GLFWWindow window);
+		
+		/**
+		 * Called on a window maximized event.
+		 * @param window the source window.
+		 */
+		void onMaximize(GLFWWindow window);
+		
+		/**
+		 * Called when the mouse cursor enters the window.
+		 * @param window the source window.
+		 */
+		void onMouseEntered(GLFWWindow window);
+		
+		/**
+		 * Called when the mouse cursor exits the window.
+		 * @param window the source window.
+		 */
+		void onMouseExited(GLFWWindow window);
+		
+		/**
+		 * Called on a window position change event.
+		 * @param window the source window.
+		 * @param x the new x-coordinate (upper-left corner).
+		 * @param y the new y-coordinate (upper-left corner).
+		 */
+		void onPositionChange(GLFWWindow window, int x, int y);
+	
+		/**
+		 * Called on a window size change event.
+		 * @param window the source window.
+		 * @param width the new width.
+		 * @param height the new height.
+		 */
+		void onSizeChange(GLFWWindow window, int width, int height);
+	
+		/**
+		 * Called on a window frame buffer change event.
+		 * @param window the source window.
+		 * @param width the new width.
+		 * @param height the new height.
+		 */
+		void onFramebufferChange(GLFWWindow window, int width, int height);
+		
+		/**
+		 * Called on a window content scale change event.
+		 * @param window the source window.
+		 * @param x the x-scaling.
+		 * @param y the y-scaling.
+		 */
+		void onContentScaleChange(GLFWWindow window, float x, float y);
+		
+	}
+
+	/**
+	 * An input event listener interface. 
+	 */
+	public static interface InputListener
+	{
+		/**
+		 * Called when a key is pressed.
+		 * @param window the source window.
+		 * @param glfwKey the key code as a GLFW id.
+		 * @param scanCode the system-specific scancode.
+		 * @param modFlags the key modifier flags active.
+		 */
+		void onKeyPress(GLFWWindow window, int glfwKey, int scanCode, int modFlags);
+
+		/**
+		 * Called when a key is repeat-fired via being held during a press.
+		 * @param window the source window.
+		 * @param glfwKey the key code as a GLFW id.
+		 * @param scanCode the system-specific scancode.
+		 * @param modFlags the key modifier flags active.
+		 */
+		void onKeyRepeated(GLFWWindow window, int glfwKey, int scanCode, int modFlags);
+
+		/**
+		 * Called when a key is released.
+		 * @param window the source window.
+		 * @param glfwKey the key code as a GLFW id.
+		 * @param scanCode the system-specific scancode.
+		 * @param modFlags the key modifier flags active.
+		 */
+		void onKeyRelease(GLFWWindow window, int glfwKey, int scanCode, int modFlags);
+
+		/**
+		 * Called when a key character is typed (character).
+		 * @param window the source window.
+		 * @param c the key character typed.
+		 */
+		void onKeyTyped(GLFWWindow window, char c);
+
+		/**
+		 * Called when the mouse cursor is moved in the window.
+		 * @param window the source window.
+		 * @param x the mouse cursor position in the window, x-axis.
+		 * @param y the mouse cursor position in the window, y-axis.
+		 */
+		void onMousePosition(GLFWWindow window, double x, double y);
+
+		/**
+		 * Called when a mouse button is pressed.
+		 * @param window the source window.
+		 * @param glfwButton the mouse button code as a GLFW id.
+		 * @param modFlags the key modifier flags active.
+		 */
+		void onMouseButtonPress(GLFWWindow window, int glfwButton, int modFlags);
+
+		/**
+		 * Called when a mouse button is released.
+		 * @param window the source window.
+		 * @param glfwButton the mouse button code as a GLFW id.
+		 * @param modFlags the key modifier flags active.
+		 */
+		void onMouseButtonRelease(GLFWWindow window, int glfwButton, int modFlags);
+		
+		/**
+		 * Called when a scrolling action occurs.
+		 * @param window the source window.
+		 * @param x the scroll amount, x-axis.
+		 * @param y the scroll amount, y-axis.
+		 */
+		void onScroll(GLFWWindow window, double x, double y);
+		
+	}
+	
+	/**
+	 * A drag 'n drop event listener interface. 
+	 */
+	public static interface DropListener
+	{
+		/**
+		 * Called when one or more files are dropped on the window.
+		 * @param window the source window.
+		 * @param files the file paths dropped.
+		 */
+		void onDrop(GLFWWindow window, File[] files);
+	}
 
 	/**
 	 * Windows hints for the next window created.
@@ -98,7 +292,7 @@ public class GLFWWindow extends GLFWHandle
 		 */
 		public static void setResizable(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_RESIZABLE, value ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
+			GLFW.glfwWindowHint(GLFW.GLFW_RESIZABLE, glfwBoolean(value));
 		}
 
 		/**
@@ -107,7 +301,7 @@ public class GLFWWindow extends GLFWHandle
 		 */
 		public static void setVisible(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_VISIBLE, value ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
+			GLFW.glfwWindowHint(GLFW.GLFW_VISIBLE, glfwBoolean(value));
 		}
 		
 		/**
@@ -116,7 +310,7 @@ public class GLFWWindow extends GLFWHandle
 		 */
 		public static void setDecorated(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_DECORATED, value ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
+			GLFW.glfwWindowHint(GLFW.GLFW_DECORATED, glfwBoolean(value));
 		}
 		
 		/**
@@ -125,7 +319,7 @@ public class GLFWWindow extends GLFWHandle
 		 */
 		public static void setFocused(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_FOCUSED, value ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
+			GLFW.glfwWindowHint(GLFW.GLFW_FOCUSED, glfwBoolean(value));
 		}
 		
 		/**
@@ -134,7 +328,7 @@ public class GLFWWindow extends GLFWHandle
 		 */
 		public static void setAutoIconified(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_AUTO_ICONIFY, value ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
+			GLFW.glfwWindowHint(GLFW.GLFW_AUTO_ICONIFY, glfwBoolean(value));
 		}
 		
 		/**
@@ -143,7 +337,7 @@ public class GLFWWindow extends GLFWHandle
 		 */
 		public static void setFloating(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_FLOATING, value ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
+			GLFW.glfwWindowHint(GLFW.GLFW_FLOATING, glfwBoolean(value));
 		}
 		
 		/**
@@ -152,7 +346,7 @@ public class GLFWWindow extends GLFWHandle
 		 */
 		public static void setMaximized(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_MAXIMIZED, value ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
+			GLFW.glfwWindowHint(GLFW.GLFW_MAXIMIZED, glfwBoolean(value));
 		}
 		
 		/**
@@ -161,7 +355,7 @@ public class GLFWWindow extends GLFWHandle
 		 */
 		public static void setCenteredCursor(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_CENTER_CURSOR, value ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
+			GLFW.glfwWindowHint(GLFW.GLFW_CENTER_CURSOR, glfwBoolean(value));
 		}
 		
 		/**
@@ -170,7 +364,7 @@ public class GLFWWindow extends GLFWHandle
 		 */
 		public static void setTransparent(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_TRANSPARENT_FRAMEBUFFER, value ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
+			GLFW.glfwWindowHint(GLFW.GLFW_TRANSPARENT_FRAMEBUFFER, glfwBoolean(value));
 		}
 		
 		/**
@@ -179,7 +373,7 @@ public class GLFWWindow extends GLFWHandle
 		 */
 		public static void setFocusOnShow(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_FOCUS_ON_SHOW, value ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
+			GLFW.glfwWindowHint(GLFW.GLFW_FOCUS_ON_SHOW, glfwBoolean(value));
 		}
 		
 		/**
@@ -188,7 +382,7 @@ public class GLFWWindow extends GLFWHandle
 		 */
 		public static void setScaleToMonitor(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_SCALE_TO_MONITOR, value ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
+			GLFW.glfwWindowHint(GLFW.GLFW_SCALE_TO_MONITOR, glfwBoolean(value));
 		}
 		
 		/**
@@ -314,7 +508,7 @@ public class GLFWWindow extends GLFWHandle
 		 */
 		public static void setRefreshRate(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_STEREO, value ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
+			GLFW.glfwWindowHint(GLFW.GLFW_STEREO, glfwBoolean(value));
 		}
 
 		/**
@@ -323,7 +517,7 @@ public class GLFWWindow extends GLFWHandle
 		 */
 		public static void setSRGBCapable(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_SRGB_CAPABLE, value ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
+			GLFW.glfwWindowHint(GLFW.GLFW_SRGB_CAPABLE, glfwBoolean(value));
 		}
 
 		/**
@@ -332,7 +526,7 @@ public class GLFWWindow extends GLFWHandle
 		 */
 		public static void setDoubleBuffered(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_DOUBLEBUFFER, value ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
+			GLFW.glfwWindowHint(GLFW.GLFW_DOUBLEBUFFER, glfwBoolean(value));
 		}
 
 		/**
@@ -389,7 +583,7 @@ public class GLFWWindow extends GLFWHandle
 		 */
 		public static void setContextNoError(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_NO_ERROR, value ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
+			GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_NO_ERROR, glfwBoolean(value));
 		}
 
 		/**
@@ -401,7 +595,7 @@ public class GLFWWindow extends GLFWHandle
 		 */
 		public static void setOpenGLForwardCompatibility(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_FORWARD_COMPAT, value ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
+			GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_FORWARD_COMPAT, glfwBoolean(value));
 		}
 
 		/**
@@ -412,7 +606,7 @@ public class GLFWWindow extends GLFWHandle
 		 */
 		public static void setOpenGLDebugContext(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_DEBUG_CONTEXT, value ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
+			GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_DEBUG_CONTEXT, glfwBoolean(value));
 		}
 
 		/**
@@ -433,7 +627,7 @@ public class GLFWWindow extends GLFWHandle
 		 */
 		public static void setCocoaRetinaFrameBuffer(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_COCOA_RETINA_FRAMEBUFFER, value ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
+			GLFW.glfwWindowHint(GLFW.GLFW_COCOA_RETINA_FRAMEBUFFER, glfwBoolean(value));
 		}
 
 		/**
@@ -447,7 +641,7 @@ public class GLFWWindow extends GLFWHandle
 		 */
 		public static void setCocoaGraphicsSwitching(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_COCOA_GRAPHICS_SWITCHING, value ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
+			GLFW.glfwWindowHint(GLFW.GLFW_COCOA_GRAPHICS_SWITCHING, glfwBoolean(value));
 		}
 
 	}
@@ -455,80 +649,154 @@ public class GLFWWindow extends GLFWHandle
 	// Set up structures.
 	private GLFWWindow()
 	{
-		this.listeners = new Vector<>(4);
+		this.monitor = null;
+		this.windowListeners = new ArrayList<>(4);
+		this.inputListeners = new ArrayList<>(4);
+		this.dropListeners = new ArrayList<>(4);
 	}
 	
-	// Init listeners.
+	// Init window listeners.
 	private void initListeners()
 	{
 		GLFW.glfwSetWindowCloseCallback(handle, (handle) -> 
 		{
-			for (int i = 0; i < listeners.size(); i++)
-				listeners.get(i).onClose(this);
+			for (int i = 0; i < windowListeners.size(); i++)
+				windowListeners.get(i).onClose(this);
 		});
 		GLFW.glfwSetWindowRefreshCallback(handle, (handle) -> 
 		{
-			for (int i = 0; i < listeners.size(); i++)
-				listeners.get(i).onRefresh(this);
+			for (int i = 0; i < windowListeners.size(); i++)
+				windowListeners.get(i).onRefresh(this);
 		});
 		GLFW.glfwSetWindowFocusCallback(handle, (handle, state) -> 
 		{
 			if (state)
 			{
-				for (int i = 0; i < listeners.size(); i++)
-					listeners.get(i).onFocus(this);
+				for (int i = 0; i < windowListeners.size(); i++)
+					windowListeners.get(i).onFocus(this);
 			}
 			else
 			{
-				for (int i = 0; i < listeners.size(); i++)
-					listeners.get(i).onBlur(this);
+				for (int i = 0; i < windowListeners.size(); i++)
+					windowListeners.get(i).onBlur(this);
 			}
 		});
 		GLFW.glfwSetWindowIconifyCallback(handle, (handle, state) -> 
 		{
 			if (state)
 			{
-				for (int i = 0; i < listeners.size(); i++)
-					listeners.get(i).onIconify(this);
+				for (int i = 0; i < windowListeners.size(); i++)
+					windowListeners.get(i).onIconify(this);
 			}
 			else
 			{
-				for (int i = 0; i < listeners.size(); i++)
-					listeners.get(i).onRestore(this);
+				for (int i = 0; i < windowListeners.size(); i++)
+					windowListeners.get(i).onRestore(this);
 			}
 		});
 		GLFW.glfwSetWindowMaximizeCallback(handle, (handle, state) -> 
 		{
 			if (state)
 			{
-				for (int i = 0; i < listeners.size(); i++)
-					listeners.get(i).onMaximize(this);
+				for (int i = 0; i < windowListeners.size(); i++)
+					windowListeners.get(i).onMaximize(this);
 			}
 			else
 			{
-				for (int i = 0; i < listeners.size(); i++)
-					listeners.get(i).onRestore(this);
+				for (int i = 0; i < windowListeners.size(); i++)
+					windowListeners.get(i).onRestore(this);
 			}
 		});
 		GLFW.glfwSetWindowPosCallback(handle, (handle, x, y) -> 
 		{
-			for (int i = 0; i < listeners.size(); i++)
-				listeners.get(i).onPositionChange(this, x, y);
+			for (int i = 0; i < windowListeners.size(); i++)
+				windowListeners.get(i).onPositionChange(this, x, y);
 		});
 		GLFW.glfwSetWindowSizeCallback(handle, (handle, width, height) -> 
 		{
-			for (int i = 0; i < listeners.size(); i++)
-				listeners.get(i).onSizeChange(this, width, height);
+			for (int i = 0; i < windowListeners.size(); i++)
+				windowListeners.get(i).onSizeChange(this, width, height);
 		});
 		GLFW.glfwSetWindowContentScaleCallback(handle, (handle, width, height) -> 
 		{
-			for (int i = 0; i < listeners.size(); i++)
-				listeners.get(i).onContentScaleChange(this, width, height);
+			for (int i = 0; i < windowListeners.size(); i++)
+				windowListeners.get(i).onContentScaleChange(this, width, height);
 		});
 		GLFW.glfwSetFramebufferSizeCallback(handle, (handle, x, y) -> 
 		{
-			for (int i = 0; i < listeners.size(); i++)
-				listeners.get(i).onFramebufferChange(this, x, y);
+			for (int i = 0; i < windowListeners.size(); i++)
+				windowListeners.get(i).onFramebufferChange(this, x, y);
+		});
+		GLFW.glfwSetCursorEnterCallback(handle, (handle, entered) ->
+		{
+			if (entered)
+			{
+				for (int i = 0; i < windowListeners.size(); i++)
+					windowListeners.get(i).onMouseEntered(this);
+			}
+			else
+			{
+				for (int i = 0; i < windowListeners.size(); i++)
+					windowListeners.get(i).onMouseExited(this);
+			}
+		});
+
+		GLFW.glfwSetDropCallback(handle, (handle, count, namesPointer) ->
+		{
+			File[] files = new File[count];
+			for (int i = 0; i < count; i++)
+				files[i] = new File(GLFWDropCallback.getName(namesPointer, i));
+			for (int i = 0; i < dropListeners.size(); i++)
+				dropListeners.get(i).onDrop(this, files);			
+		});
+
+		GLFW.glfwSetKeyCallback(handle, (handle, glfwKey, scancode, actionId, modflags) -> 
+		{
+			switch (actionId)
+			{
+				case GLFW.GLFW_PRESS:
+					for (int i = 0; i < inputListeners.size(); i++)
+						inputListeners.get(i).onKeyPress(this, glfwKey, scancode, modflags);
+					break;
+				case GLFW.GLFW_REPEAT:
+					for (int i = 0; i < inputListeners.size(); i++)
+						inputListeners.get(i).onKeyRepeated(this, glfwKey, scancode, modflags);
+					break;
+				case GLFW.GLFW_RELEASE:
+					for (int i = 0; i < inputListeners.size(); i++)
+						inputListeners.get(i).onKeyRelease(this, glfwKey, scancode, modflags);
+					break;
+			}
+		});
+		GLFW.glfwSetCharCallback(handle, (handle, codepoint) -> 
+		{
+			for (int i = 0; i < inputListeners.size(); i++)
+				inputListeners.get(i).onKeyTyped(this, (char)codepoint);
+		});
+
+		GLFW.glfwSetCursorPosCallback(handle, (handle, x, y) ->
+		{
+			for (int i = 0; i < inputListeners.size(); i++)
+				inputListeners.get(i).onMousePosition(this, x, y);
+		});
+		GLFW.glfwSetMouseButtonCallback(handle, (handle, glfwButton, actionId, modFlags) -> 
+		{
+			switch (actionId)
+			{
+				case GLFW.GLFW_PRESS:
+					for (int i = 0; i < inputListeners.size(); i++)
+						inputListeners.get(i).onMouseButtonPress(this, glfwButton, modFlags);
+					break;
+				case GLFW.GLFW_RELEASE:
+					for (int i = 0; i < inputListeners.size(); i++)
+						inputListeners.get(i).onMouseButtonRelease(this, glfwButton, modFlags);
+					break;
+			}
+		});
+		GLFW.glfwSetScrollCallback(handle, (handle, x, y) -> 
+		{
+			for (int i = 0; i < inputListeners.size(); i++)
+				inputListeners.get(i).onScroll(this, x, y);
 		});
 	}
 	
@@ -625,11 +893,37 @@ public class GLFWWindow extends GLFWHandle
 	{
 		if (allocated)
 		{
+			Callbacks.glfwFreeCallbacks(handle);
 			GLFW.glfwDestroyWindow(handle);
 			allocated = false;
 		}
 	}
 	
+	/**
+	 * Sets the target monitor for this window in fullscreen mode.
+	 * <p><b>This must only be called from the main thread.</b>
+	 * @param monitor the desired monitor, or null to set windowed mode.
+	 * @param xpos the desired x-coordinate of the upper-left corner of the content area.
+	 * @param ypos the desired y-coordinate of the upper-left corner of the content area.
+	 * @param width the desired width in screen coordinates of the content area or video mode.
+	 * @param height the desired height in screen coordinates of the content area or video mode.
+	 * @param refreshRate the desired refresh rate in Hz of the video mode, or {@link Hints#DONT_CARE}
+	 */
+	public void setMonitor(GLFWMonitor monitor, int xpos, int ypos, int width, int height, int refreshRate)
+	{
+		GLFW.glfwSetWindowMonitor(handle, monitor != null ? monitor.getHandle() : MemoryUtil.NULL, xpos, ypos, width, height, refreshRate);
+		this.monitor = monitor;
+	}
+
+	/**
+	 * Sets the current monitor for this window.
+	 * @return the current monitor, or null if none.
+	 */
+	public GLFWMonitor getMonitor()
+	{
+		return monitor;
+	}
+
 	/**
 	 * Sets this window's title.
 	 * <p><b>This must only be called from the main thread.</b>
@@ -642,16 +936,39 @@ public class GLFWWindow extends GLFWHandle
 	
 	/**
 	 * Sets this window's icon. 
-	 * Only works in non-macOS environments.
+	 * Only works in non-macOS environments. 
+	 * In macOS, the application bundle icons are used. 
 	 * <p><b>This must only be called from the main thread.</b>
-	 * @param icon the new title.
-	 * @see GLFW#glfwSetWindowIcon(long, Buffer)
+	 * @param icon the new icon.
 	 */
-	public void setIcon(Image icon)
+	public void setIcon(BufferedImage icon)
 	{
-		// TODO: Support this.
-		// glfwSetWindowIcon(long, Buffer)
-		throw new UnsupportedOperationException("Not supported yet.");
+		try (
+			MemoryStack stack = MemoryStack.stackPush(); 
+			GLFWImage image = GLFWImage.malloc(); 
+			GLFWImage.Buffer imageBuffer = GLFWImage.malloc(1)
+		){
+			ByteBuffer buffer = ByteBuffer.allocateDirect(icon.getWidth() * icon.getHeight() * 4);
+			buffer.rewind();
+			int[] argbRow = new int[icon.getWidth()];
+			for (int y = 0; y < icon.getHeight(); y++)
+			{
+				icon.getRGB(0, y, argbRow.length, 1, argbRow, 0, 0);
+				for (int x = 0; x < icon.getWidth(); x++)
+				{
+					// ARGB in, RGBA out.
+					int argb = argbRow[x];
+					buffer.put(0, (byte)((argb & 0x00ff0000) >>> 16));
+					buffer.put(0, (byte)((argb & 0x0000ff00) >>> 8));
+					buffer.put(0, (byte)((argb & 0x000000ff) >>> 0));
+					buffer.put(0, (byte)((argb & 0xff000000) >>> 24));
+				}
+			}
+			buffer.flip();
+			image.set(icon.getWidth(), icon.getHeight(), buffer);
+			imageBuffer.put(0, image);
+			GLFW.glfwSetWindowIcon(handle, imageBuffer);
+		}
 	}
 	
 	/**
@@ -729,7 +1046,7 @@ public class GLFWWindow extends GLFWHandle
 	}
 
 	/**
-	 * Sets the closing flag of this window.
+	 * Sets the closing flag of this window (aka "window should close").
 	 * <p>This can be called from any thread.
 	 * @param state the closing state.
 	 */
@@ -793,107 +1110,197 @@ public class GLFWWindow extends GLFWHandle
 		}
 	}
 	
-	/*
-		TODO: All of this stuff.
-		
-		glfwSetWindowOpacity(long, float)
-		glfwSetWindowSizeLimits(long, int, int, int, int)
-		glfwSetWindowAspectRatio(long, int, int)
-		glfwSetWindowAttrib(long, int, int)
-
-		glfwGetWindowOpacity(long)
-		glfwGetFramebufferSize(long, IntBuffer, IntBuffer)
-		glfwGetWindowFrameSize(long, IntBuffer, IntBuffer, IntBuffer, IntBuffer)
-		glfwGetWindowAttrib(long, int)
-
-		glfwSetWindowMonitor(long, long, int, int, int, int, int)
-		glfwSetWindowUserPointer(long, long)
-		
-		glfwGetWindowMonitor(long)
-		glfwGetWindowUserPointer(long)
-
-		glfwGetWindowContentScale(long, FloatBuffer, FloatBuffer)
+	/**
+	 * Sets the size limits of the content area of the specified window.
+	 * @param minwidth the minimum width in screen coordinates of the content area, or {@link Hints#DONT_CARE}
+	 * @param minheight the minimum height in screen coordinates of the content area, or {@link Hints#DONT_CARE}
+	 * @param maxwidth the maximum width in screen coordinates of the content area, or {@link Hints#DONT_CARE}
+	 * @param maxheight the maximum height in screen coordinates of the content area, or {@link Hints#DONT_CARE}
 	 */
+	public void setSizeLimits(int minwidth, int minheight, int maxwidth, int maxheight)
+	{
+		GLFW.glfwSetWindowSizeLimits(handle, minwidth, minheight, maxwidth, maxheight);
+	}
 
 	/**
-	 * A window event listener interface. 
+	 * Sets the window opacity.
+	 * <p><b>This must only be called from the main thread.</b>
+	 * @param scalar the new opacity scalar.
 	 */
-	public static interface Listener
+	public void setOpacity(float scalar)
 	{
-		/**
-		 * Called on a window close event.
-		 * @param window the source window.
-		 */
-		void onClose(GLFWWindow window);
-		
-		/**
-		 * Called on a window refresh event.
-		 * @param window the source window.
-		 */
-		void onRefresh(GLFWWindow window);
-		
-		/**
-		 * Called on a window focus event.
-		 * @param window the source window.
-		 */
-		void onFocus(GLFWWindow window);
-		
-		/**
-		 * Called on a window blur event.
-		 * @param window the source window.
-		 */
-		void onBlur(GLFWWindow window);
-		
-		/**
-		 * Called on a window iconified event.
-		 * @param window the source window.
-		 */
-		void onIconify(GLFWWindow window);
-		
-		/**
-		 * Called on a window restore event.
-		 * @param window the source window.
-		 */
-		void onRestore(GLFWWindow window);
-		
-		/**
-		 * Called on a window maximized event.
-		 * @param window the source window.
-		 */
-		void onMaximize(GLFWWindow window);
-		
-		/**
-		 * Called on a window position change event.
-		 * @param window the source window.
-		 * @param x the new x-coordinate (upper-left corner).
-		 * @param y the new y-coordinate (upper-left corner).
-		 */
-		void onPositionChange(GLFWWindow window, int x, int y);
-
-		/**
-		 * Called on a window size change event.
-		 * @param window the source window.
-		 * @param width the new width.
-		 * @param height the new height.
-		 */
-		void onSizeChange(GLFWWindow window, int width, int height);
-
-		/**
-		 * Called on a window frame buffer change event.
-		 * @param width the new width.
-		 * @param height the new height.
-		 * @param window the source window.
-		 */
-		void onFramebufferChange(GLFWWindow window, int width, int height);
-		
-		/**
-		 * Called on a window content scale change event.
-		 * @param width the new width.
-		 * @param x the x-scaling.
-		 * @param y the y-scaling.
-		 */
-		void onContentScaleChange(GLFWWindow window, float x, float y);
-		
+		GLFW.glfwSetWindowOpacity(handle, scalar);
 	}
 	
+	/**
+	 * Gets the window opacity.
+	 * <p><b>This must only be called from the main thread.</b>
+	 * @param scalar the new opacity scalar.
+	 * @return the window opacity.
+	 */
+	public float getOpacity(float scalar)
+	{
+		return GLFW.glfwGetWindowOpacity(handle);
+	}
+	
+	/**
+	 * Sets this window's aspect ratio limits.
+	 * <p><b>This must only be called from the main thread.</b>
+     * @param numer the numerator of the desired aspect ratio, or {@link Hints#DONT_CARE}
+     * @param denom the denominator of the desired aspect ratio, or {@link Hints#DONT_CARE}
+	 */
+	public void setAspectRatio(int numer, int denom) 
+	{
+		GLFW.glfwSetWindowAspectRatio(handle, 0, 0);
+	}
+	
+	/**
+	 * Sets if this window is decorated (has shell bordering).
+	 * <p><b>This must only be called from the main thread.</b>
+     * @param value true if so, false if not.
+	 */
+	public void setDecorated(boolean value) 
+	{
+		GLFW.glfwSetWindowAttrib(handle, GLFW.GLFW_DECORATED, glfwBoolean(value));
+	}
+
+	/**
+	 * Sets if this window is resizable (via user, not program).
+	 * <p><b>This must only be called from the main thread.</b>
+     * @param value true if so, false if not.
+	 */
+	public void setResizable(boolean value) 
+	{
+		GLFW.glfwSetWindowAttrib(handle, GLFW.GLFW_RESIZABLE, glfwBoolean(value));
+	}
+
+	/**
+	 * Sets if this window is iconified on creation.
+	 * <p><b>This must only be called from the main thread.</b>
+	 * @param value true if so, false if not.
+	 */
+	public void setAutoIconified(boolean value)
+	{
+		GLFW.glfwSetWindowAttrib(handle, GLFW.GLFW_AUTO_ICONIFY, glfwBoolean(value));
+	}
+	
+	/**
+	 * Sets if this window is floating, or rather, "always on top".
+	 * <p><b>This must only be called from the main thread.</b>
+	 * @param value true if so, false if not.
+	 */
+	public void setFloating(boolean value)
+	{
+		GLFW.glfwSetWindowAttrib(handle, GLFW.GLFW_FLOATING, glfwBoolean(value));
+	}
+	
+	/**
+	 * Sets if this window requests focus when shown.
+	 * <p><b>This must only be called from the main thread.</b>
+	 * @param value true if so, false if not.
+	 */
+	public void setFocusOnShow(boolean value)
+	{
+		GLFW.glfwSetWindowAttrib(handle, GLFW.GLFW_FOCUS_ON_SHOW, glfwBoolean(value));
+	}
+
+	/**
+	 * Gets the frame buffer size.
+	 * <p><b>This must only be called from the main thread.</b>
+	 * @return a Dimension that represents the framebuffer size.
+	 */
+	public Dimension getFramebufferSize()
+	{
+		try (MemoryStack stack = MemoryStack.stackPush())
+		{
+			IntBuffer buf1 = stack.mallocInt(1);
+			IntBuffer buf2 = stack.mallocInt(1);
+			GLFW.glfwGetFramebufferSize(handle, buf1, buf2);
+			return new Dimension(buf1.get(0), buf2.get(0));
+		}
+	}
+	
+	/**
+	 * Gets the window's frame size.
+	 * <p><b>This must only be called from the main thread.</b>
+	 * @return a Rectangle that represents the framebuffer size (x, y, width, height).
+	 */
+	public Rectangle getFrameSize()
+	{
+		try (MemoryStack stack = MemoryStack.stackPush())
+		{
+			IntBuffer left = stack.mallocInt(1);
+			IntBuffer top = stack.mallocInt(1);
+			IntBuffer right = stack.mallocInt(1);
+			IntBuffer bottom = stack.mallocInt(1);
+			GLFW.glfwGetWindowFrameSize(handle, left, top, right, bottom);
+			return new Rectangle(left.get(0), top.get(0), right.get(0) - left.get(0), bottom.get(0) - top.get(0));
+		}
+	}
+	
+	/**
+	 * Gets the content scale for the specified window. 
+	 * The content scale is the ratio between the current DPI and the platform's default DPI.
+	 * Depends on monitor.
+	 * @return the scalars.
+	 */
+	public Pair2F getContentScale()
+	{
+		try (MemoryStack stack = MemoryStack.stackPush())
+		{
+			FloatBuffer fbuf1 = stack.mallocFloat(1);
+			FloatBuffer fbuf2 = stack.mallocFloat(1);
+			GLFW.glfwGetWindowContentScale(handle, fbuf1, fbuf2);
+			return new Pair2F(fbuf1.get(0), fbuf2.get(0));
+		}
+	}
+	
+	/**
+	 * Makes this window the current target of OpenGL/GLES calls for this thread.
+	 * If this window is already current on this thread, nothing happens.
+	 * If this window is already current on a different thread, this throws an {@link IllegalStateException}.
+	 * If this window is null, and this thread has no bound context, nothing happens.
+	 * <p>This can be called from any thread, preferably the rendering thread.
+	 * @throws IllegalStateException if this window is already current on a different thread.
+	 * @see GLFWContext#makeWindowContextCurrent(GLFWWindow)
+	 */
+	public void makeCurrent()
+	{
+		GLFWContext.makeWindowContextCurrent(this);
+	}
+	
+	/**
+	 * Swaps the front and back buffer on the window, redrawing its contents to the foreground.
+	 * If a swap interval is set, the system may wait for a set of vertical blank 
+	 * signals before this happens, and will block until they occur.
+	 * <p>This is only necessary for OpenGL/GLES contexts.
+	 * <p>This can be called from any thread.
+	 * @see GLFWWindow#setSwapInterval(int)
+	 */
+	public void swapBuffers()
+	{
+		GLFW.glfwSwapBuffers(handle);
+	}
+	
+	// Convert Java boolean to GLFW boolean.
+	private static int glfwBoolean(boolean value)
+	{
+		return value ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE;
+	}
+
+	/**
+	 * Sets how many vertical blanks need to occur before a window buffer swap.
+	 * In layman's terms, this either sets VSync on (1) or off (0).
+	 * This is set for all windows.
+	 * <p>This can be called from any thread.
+	 * @param blanks the amount of vertical blanks to wait.
+	 * @throws IllegalArgumentException if blanks is less than 0.
+	 */
+	public static void setSwapInterval(int blanks)
+	{
+		if (blanks < 0)
+			throw new IllegalArgumentException("blanks cannot be less than 0");
+		GLFW.glfwSwapInterval(blanks);
+	}
+
 }
