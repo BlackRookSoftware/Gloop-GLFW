@@ -1256,20 +1256,6 @@ public class GLFWWindow extends GLFWHandle
 	}
 	
 	/**
-	 * Makes this window the current target of OpenGL/GLES calls for this thread.
-	 * If this window is already current on this thread, nothing happens.
-	 * If this window is already current on a different thread, this throws an {@link IllegalStateException}.
-	 * If this window is null, and this thread has no bound context, nothing happens.
-	 * <p>This can be called from any thread, preferably the rendering thread.
-	 * @throws IllegalStateException if this window is already current on a different thread.
-	 * @see GLFWContext#makeWindowContextCurrent(GLFWWindow)
-	 */
-	public void makeCurrent()
-	{
-		GLFWContext.makeWindowContextCurrent(this);
-	}
-	
-	/**
 	 * Swaps the front and back buffer on the window, redrawing its contents to the foreground.
 	 * If a swap interval is set, the system may wait for a set of vertical blank 
 	 * signals before this happens, and will block until they occur.

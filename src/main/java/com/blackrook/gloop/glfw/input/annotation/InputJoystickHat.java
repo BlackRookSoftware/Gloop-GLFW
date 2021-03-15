@@ -5,7 +5,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import com.blackrook.gloop.glfw.input.JoystickHatType;
+import com.blackrook.gloop.glfw.input.enums.JoystickHatType;
 
 /**
  * Annotates a field that sets if a joystick hat is in a position or not.

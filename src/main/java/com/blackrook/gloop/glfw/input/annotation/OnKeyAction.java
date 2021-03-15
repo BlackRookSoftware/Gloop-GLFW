@@ -5,7 +5,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import com.blackrook.gloop.glfw.input.KeyType;
+import com.blackrook.gloop.glfw.input.enums.KeyType;
 
 /**
  * Annotates a field that calls a method if a key is pressed or released.

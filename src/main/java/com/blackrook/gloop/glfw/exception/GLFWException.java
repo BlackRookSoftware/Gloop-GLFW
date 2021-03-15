@@ -10,7 +10,7 @@ public class GLFWException extends RuntimeException
 
 	public GLFWException()
 	{
-		super("A new sound buffer couldn't be allocated.");
+		super("A GLFW object couldn't be allocated.");
 	}
 
 	public GLFWException(String message)

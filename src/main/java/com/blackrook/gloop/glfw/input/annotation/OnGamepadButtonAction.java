@@ -5,7 +5,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import com.blackrook.gloop.glfw.input.GamepadButtonType;
+import com.blackrook.gloop.glfw.input.enums.GamepadButtonType;
 
 /**
  * Annotates a field that calls a method if a gamepad button is pressed or released.

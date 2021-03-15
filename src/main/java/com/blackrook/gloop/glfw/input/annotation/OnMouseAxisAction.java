@@ -5,7 +5,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import com.blackrook.gloop.glfw.input.MouseAxisType;
+import com.blackrook.gloop.glfw.input.enums.MouseAxisType;
 
 /**
  * Annotates a field that calls a method if a mouse axis is moved.

@@ -5,7 +5,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import com.blackrook.gloop.glfw.input.GamepadAxisType;
+import com.blackrook.gloop.glfw.input.enums.GamepadAxisType;
 
 /**
  * Annotates a field that sets if a gamepad axis is moved by a certain amount of units.

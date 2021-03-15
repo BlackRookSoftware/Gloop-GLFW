@@ -1,7 +1,9 @@
 package com.blackrook.gloop.glfw;
 
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.lwjgl.glfw.GLFW;
@@ -19,7 +21,27 @@ public final class GLFWContext
 	private static boolean initialized = false;
 	private static Map<GLFWWindow, Thread> WINDOW_TO_CONTEXT_THREAD;
 	private static Map<Thread, GLFWWindow> CONTEXT_THREAD_TO_WINDOW;
-	
+	private static List<JoystickConnectionListener> LISTENERS_JOYSTICK;
+
+	/**
+	 * A listener interface for when joysticks/gamepads get 
+	 * connected or disconnected from GLFW.
+	 */
+	public interface JoystickConnectionListener
+	{
+		/**
+		 * Called when a joystick connects to the system.
+		 * @param joystickId the GLFW joystick id.
+		 */
+		void onJoystickConnect(int joystickId);
+
+		/**
+		 * Called when a joystick disconnects from the system.
+		 * @param joystickId the GLFW joystick id.
+		 */
+		void onJoystickDisconnect(int joystickId);
+	}
+
 	/**
 	 * Initializes GLFW.
 	 * If already initialized, this does nothing.
@@ -37,6 +59,27 @@ public final class GLFWContext
 		GLFW.glfwDefaultWindowHints();
 		WINDOW_TO_CONTEXT_THREAD = new HashMap<>();
 		CONTEXT_THREAD_TO_WINDOW = new HashMap<>();
+		LISTENERS_JOYSTICK = new ArrayList<>();
+		
+		GLFW.glfwSetJoystickCallback((jid, event) -> 
+		{
+			switch (event)
+			{
+				case GLFW.GLFW_CONNECTED:
+				{
+					for (int i = 0; i < LISTENERS_JOYSTICK.size(); i++)
+						LISTENERS_JOYSTICK.get(i).onJoystickConnect(jid);
+				}
+				break;
+				
+				case GLFW.GLFW_DISCONNECTED:
+				{
+					for (int i = 0; i < LISTENERS_JOYSTICK.size(); i++)
+						LISTENERS_JOYSTICK.get(i).onJoystickDisconnect(jid);
+				}
+				break;
+			}
+		});
 		
 		initialized = true;
 	}
@@ -52,6 +95,7 @@ public final class GLFWContext
 			return;
 		WINDOW_TO_CONTEXT_THREAD = null;
 		CONTEXT_THREAD_TO_WINDOW = null;
+		LISTENERS_JOYSTICK = null;
 		GLFW.glfwTerminate();
 		initialized = false;
 	}

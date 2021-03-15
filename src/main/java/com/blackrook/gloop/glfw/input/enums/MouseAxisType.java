@@ -1,4 +1,4 @@
-package com.blackrook.gloop.glfw.input;
+package com.blackrook.gloop.glfw.input.enums;
 
 /**
  * All valid input mouse axes.

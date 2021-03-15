@@ -1,4 +1,4 @@
-package com.blackrook.gloop.glfw.input;
+package com.blackrook.gloop.glfw.input.enums;
 
 import java.util.HashMap;
 import java.util.Map;

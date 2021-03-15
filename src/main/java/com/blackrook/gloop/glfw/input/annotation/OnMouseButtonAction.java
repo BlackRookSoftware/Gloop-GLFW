@@ -5,7 +5,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import com.blackrook.gloop.glfw.input.MouseButtonType;
+import com.blackrook.gloop.glfw.input.enums.MouseButtonType;
 
 /**
  * Annotates a field that calls a method if a mouse button is pressed or released.
