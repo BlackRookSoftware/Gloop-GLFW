@@ -9,8 +9,8 @@ import com.blackrook.gloop.glfw.input.enums.MouseAxisType;
 
 /**
  * Annotates a field that calls a method if a mouse axis is moved.
- * Expects to call a method that takes both a {@link MouseAxisType} and an integer parameter; an error will be thrown if this is not the case.
- * <p>The {@link MouseAxisType} is the axis the action happened on, and the integer is the amount. 
+ * Expects to call a method that takes both a {@link MouseAxisType} and a double parameter; an error will be thrown if this is not the case.
+ * <p>The {@link MouseAxisType} is the axis the action happened on, and the double is the amount. 
  * @author Matthew Tropiano
  */
 @Retention(RetentionPolicy.RUNTIME)

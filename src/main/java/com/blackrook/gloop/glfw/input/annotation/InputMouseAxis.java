@@ -9,7 +9,7 @@ import com.blackrook.gloop.glfw.input.enums.MouseAxisType;
 
 /**
  * Annotates a field that sets if a mouse axis is moved by a certain amount of units.
- * Expects to write to an integer value; an error will be thrown if this is not the case.
+ * Expects to write to a double value; an error will be thrown if this is not the case.
  * <p>Public fields or methods that are "setters" can be annotated with this.
  * @author Matthew Tropiano
  */

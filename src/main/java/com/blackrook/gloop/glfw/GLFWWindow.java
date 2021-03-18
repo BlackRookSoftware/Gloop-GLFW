@@ -18,6 +18,7 @@ import org.lwjgl.glfw.GLFWImage;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 
+import com.blackrook.gloop.glfw.exception.GLFWException;
 import com.blackrook.gloop.glfw.struct.Pair2F;
 
 /**
@@ -806,6 +807,7 @@ public class GLFWWindow extends GLFWHandle
 	 * @param title the window title.
 	 * @param width the window's initial width.
 	 * @param height the window's initial height.
+	 * @throws GLFWException if the window could not be created.
 	 * @see Hints
 	 * @See {@link GLFW#glfwCreateWindow(int, int, CharSequence, long, long)}
 	 */
@@ -814,6 +816,8 @@ public class GLFWWindow extends GLFWHandle
 		this();
 		GLFWContext.init(); // init GLFW if not already (only happens once).
 		this.handle = GLFW.glfwCreateWindow(width, height, title, MemoryUtil.NULL, MemoryUtil.NULL);
+		if (this.handle == MemoryUtil.NULL)
+			throw new GLFWException("Window could not be created!");
 		this.allocated = true;
 		initListeners();
 	}
@@ -825,6 +829,7 @@ public class GLFWWindow extends GLFWHandle
 	 * @param title the window title.
 	 * @param width the window's initial width.
 	 * @param height the window's initial height.
+	 * @throws GLFWException if the window could not be created.
 	 * @see Hints
 	 * @See {@link GLFW#glfwCreateWindow(int, int, CharSequence, long, long)}
 	 */
@@ -833,6 +838,8 @@ public class GLFWWindow extends GLFWHandle
 		this();
 		GLFWContext.init(); // init GLFW if not already (only happens once).
 		this.handle = GLFW.glfwCreateWindow(width, height, title, MemoryUtil.NULL, sharedWindow.getHandle());
+		if (this.handle == MemoryUtil.NULL)
+			throw new GLFWException("Window could not be created!");
 		this.allocated = true;
 		initListeners();
 	}
@@ -844,6 +851,7 @@ public class GLFWWindow extends GLFWHandle
 	 * @param title the window title.
 	 * @param width the window's initial width.
 	 * @param height the window's initial height.
+	 * @throws GLFWException if the window could not be created.
 	 * @see Hints
 	 * @See {@link GLFW#glfwCreateWindow(int, int, CharSequence, long, long)}
 	 */
@@ -852,6 +860,8 @@ public class GLFWWindow extends GLFWHandle
 		this();
 		GLFWContext.init(); // init GLFW if not already (only happens once).
 		this.handle = GLFW.glfwCreateWindow(width, height, title, monitor.getHandle(), MemoryUtil.NULL);
+		if (this.handle == MemoryUtil.NULL)
+			throw new GLFWException("Window could not be created!");
 		this.allocated = true;
 		initListeners();
 	}
@@ -864,6 +874,7 @@ public class GLFWWindow extends GLFWHandle
 	 * @param title the window title.
 	 * @param width the window's initial width.
 	 * @param height the window's initial height.
+	 * @throws GLFWException if the window could not be created.
 	 * @see Hints
 	 * @See {@link GLFW#glfwCreateWindow(int, int, CharSequence, long, long)}
 	 */
@@ -872,6 +883,8 @@ public class GLFWWindow extends GLFWHandle
 		this();
 		GLFWContext.init(); // init GLFW if not already (only happens once).
 		this.handle = GLFW.glfwCreateWindow(width, height, title, monitor.getHandle(), sharedWindow.getHandle());
+		if (this.handle == MemoryUtil.NULL)
+			throw new GLFWException("Window could not be created!");
 		this.allocated = true;
 		initListeners();
 	}
@@ -1261,32 +1274,19 @@ public class GLFWWindow extends GLFWHandle
 	 * signals before this happens, and will block until they occur.
 	 * <p>This is only necessary for OpenGL/GLES contexts.
 	 * <p>This can be called from any thread.
-	 * @see GLFWWindow#setSwapInterval(int)
+	 * @see GLFWContext#setSwapInterval(int)
 	 */
 	public void swapBuffers()
 	{
 		GLFW.glfwSwapBuffers(handle);
 	}
 	
+	// TODO: Add listener methods.
+	
 	// Convert Java boolean to GLFW boolean.
 	private static int glfwBoolean(boolean value)
 	{
 		return value ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE;
-	}
-
-	/**
-	 * Sets how many vertical blanks need to occur before a window buffer swap.
-	 * In layman's terms, this either sets VSync on (1) or off (0).
-	 * This is set for all windows.
-	 * <p>This can be called from any thread.
-	 * @param blanks the amount of vertical blanks to wait.
-	 * @throws IllegalArgumentException if blanks is less than 0.
-	 */
-	public static void setSwapInterval(int blanks)
-	{
-		if (blanks < 0)
-			throw new IllegalArgumentException("blanks cannot be less than 0");
-		GLFW.glfwSwapInterval(blanks);
 	}
 
 }

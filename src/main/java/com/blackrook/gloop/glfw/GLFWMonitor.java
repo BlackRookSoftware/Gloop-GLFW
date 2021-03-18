@@ -5,6 +5,7 @@ import java.nio.IntBuffer;
 
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.glfw.GLFW;
+import org.lwjgl.glfw.GLFWVidMode;
 import org.lwjgl.system.MemoryStack;
 
 /**
@@ -207,6 +208,14 @@ public class GLFWMonitor extends GLFWHandle
 	public int getWorkAreaHeight()
 	{
 		return workAreaHeight;
+	}
+	
+	/**
+	 * @return this monitor's video mode.
+	 */
+	public GLFWVidMode getVideoMode()
+	{
+		return GLFW.glfwGetVideoMode(handle);
 	}
 	
 }

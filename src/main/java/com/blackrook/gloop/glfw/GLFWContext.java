@@ -47,7 +47,7 @@ public final class GLFWContext
 	 * If already initialized, this does nothing.
 	 * <p><b>This must only be called from the main thread.</b>
 	 */
-	static void init()
+	public static void init()
 	{
 		if (initialized)
 			return;
@@ -86,6 +86,7 @@ public final class GLFWContext
 	
 	/**
 	 * Destroys GLFW and frees its resources.
+	 * The error callback is also freed.
 	 * Does nothing if GLFW was not initialized.
 	 * <p><b>This must only be called from the main thread.</b>
 	 */
@@ -97,6 +98,7 @@ public final class GLFWContext
 		CONTEXT_THREAD_TO_WINDOW = null;
 		LISTENERS_JOYSTICK = null;
 		GLFW.glfwTerminate();
+		setErrorStream(null);
 		initialized = false;
 	}
 
@@ -152,4 +154,31 @@ public final class GLFWContext
 		}		
 	}
 	
+	/**
+	 * Sets how many vertical blanks need to occur before a window buffer swap.
+	 * In layman's terms, this either sets VSync on (1) or off (0).
+	 * This is set for all windows.
+	 * <p>This can be called from any thread.
+	 * @param blanks the amount of vertical blanks to wait.
+	 * @throws IllegalArgumentException if blanks is less than 0.
+	 */
+	public static void setSwapInterval(int blanks)
+	{
+		if (blanks < 0)
+			throw new IllegalArgumentException("blanks cannot be less than 0");
+		GLFW.glfwSwapInterval(blanks);
+	}
+
+	/**
+	 * Polls all pending events.
+	 * Any event that came in from any window is flushed.
+	 * <p><b>This must only be called from the main thread.</b>
+	 * <p><b>This must NOT be called from any callback or listener.</b>
+	 * @throws IllegalArgumentException if blanks is less than 0.
+	 */
+	public static void pollEvents()
+	{
+		GLFW.glfwPollEvents();
+	}
+
 }

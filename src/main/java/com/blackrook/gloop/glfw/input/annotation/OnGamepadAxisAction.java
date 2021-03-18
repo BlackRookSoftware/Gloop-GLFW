@@ -9,8 +9,8 @@ import com.blackrook.gloop.glfw.input.enums.GamepadAxisType;
 
 /**
  * Annotates a field that calls a method if a gamepad axis is moved.
- * Expects to call a method that takes an integer, a {@link GamepadAxisType}, and a float parameter; an error will be thrown if this is not the case.
- * <p>The integer is the device id, the {@link GamepadAxisType} is the axis the action happened on, and the float is the amount. 
+ * Expects to call a method that takes a {@link GamepadAxisType} and a double parameter; an error will be thrown if this is not the case.
+ * <p>The {@link GamepadAxisType} is the axis the action happened on, and the double is the amount. 
  * @author Matthew Tropiano
  */
 @Retention(RetentionPolicy.RUNTIME)

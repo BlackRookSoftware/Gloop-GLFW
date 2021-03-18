@@ -1,11 +1,31 @@
 package com.blackrook.gloop.glfw.input;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 
+import com.blackrook.gloop.glfw.input.annotation.InputGamepadAxis;
+import com.blackrook.gloop.glfw.input.annotation.InputGamepadButton;
+import com.blackrook.gloop.glfw.input.annotation.InputJoystickHat;
+import com.blackrook.gloop.glfw.input.annotation.InputKey;
+import com.blackrook.gloop.glfw.input.annotation.InputMouseAxis;
+import com.blackrook.gloop.glfw.input.annotation.InputMouseButton;
+import com.blackrook.gloop.glfw.input.annotation.InputMouseScroll;
+import com.blackrook.gloop.glfw.input.annotation.OnChange;
+import com.blackrook.gloop.glfw.input.annotation.OnGamepadAxisAction;
+import com.blackrook.gloop.glfw.input.annotation.OnGamepadButtonAction;
+import com.blackrook.gloop.glfw.input.annotation.OnJoystickHatAction;
+import com.blackrook.gloop.glfw.input.annotation.OnKeyAction;
+import com.blackrook.gloop.glfw.input.annotation.OnMouseAxisAction;
+import com.blackrook.gloop.glfw.input.annotation.OnMouseButtonAction;
+import com.blackrook.gloop.glfw.input.annotation.OnMouseScrollAction;
 import com.blackrook.gloop.glfw.input.enums.GamepadAxisType;
 import com.blackrook.gloop.glfw.input.enums.GamepadButtonType;
 import com.blackrook.gloop.glfw.input.enums.JoystickHatType;
@@ -13,6 +33,7 @@ import com.blackrook.gloop.glfw.input.enums.KeyType;
 import com.blackrook.gloop.glfw.input.enums.MouseAxisType;
 import com.blackrook.gloop.glfw.input.enums.MouseButtonType;
 import com.blackrook.gloop.glfw.input.exception.InputDispatchException;
+import com.blackrook.gloop.glfw.input.exception.InputSetupException;
 
 /**
  * A single processed annotated input object to direct events to.
@@ -28,16 +49,19 @@ public class InputObjectProfile
 	private Map<MouseButtonType, Method> mouseButtonMethods;
 	private Map<MouseAxisType, Field> mouseAxisFields;
 	private Map<MouseAxisType, Method> mouseAxisMethods;
+	private Map<MouseAxisType, Field> mouseScrollFields;
+	private Map<MouseAxisType, Method> mouseScrollMethods;
 	private Map<GamepadButtonType, Field> gamepadButtonFields;
 	private Map<GamepadButtonType, Method> gamepadButtonMethods;
 	private Map<GamepadAxisType, Field> gamepadAxisFields;
 	private Map<GamepadAxisType, Method> gamepadAxisMethods;
-	private Map<JoystickHatType, Field> joystickHatFields;
-	private Map<JoystickHatType, Method> joystickHatMethods;
+	private Map<Integer, Field> joystickHatFields;
+	private Map<Integer, Method> joystickHatMethods;
 	
 	private Method keyEventMethod;
 	private Method mouseButtonEventMethod;
 	private Method mouseAxisEventMethod;
+	private Method mouseScrollEventMethod;
 	private Method gamepadButtonEventMethod;
 	private Method gamepadAxisEventMethod;
 	private Method joystickHatEventMethod;
@@ -48,24 +72,103 @@ public class InputObjectProfile
 		Class<?> clazz = instance.getClass();
 		for (Field f : clazz.getFields())
 		{
-			// ignore non-public, non-static
-			if ((f.getModifiers() & Modifier.PUBLIC) == 0)
-				continue;
-			if ((f.getModifiers() & Modifier.STATIC) != 0)
+			if (!isPotentialMember(f))
 				continue;
 			
-			// TODO: Finish.
+			annotationFill(
+				isValidKeyInputField(f), 
+				(anno)->anno.value(), 
+				(value)->(keyFields = makeIfNull(keyFields)).put(value, f)
+			);
+			annotationFill(
+				isValidMouseButtonInputField(f), 
+				(anno)->anno.value(), 
+				(value)->(mouseButtonFields = makeIfNull(mouseButtonFields)).put(value, f)
+			);
+			annotationFill(
+				isValidMouseAxisInputField(f), 
+				(anno)->anno.value(), 
+				(value)->(mouseAxisFields = makeIfNull(mouseAxisFields)).put(value, f)
+			);
+			annotationFill(
+				isValidMouseScrollInputField(f), 
+				(anno)->anno.value(), 
+				(value)->(mouseScrollFields = makeIfNull(mouseScrollFields)).put(value, f)
+			);
+			annotationFill(
+				isValidGamepadButtonInputField(f), 
+				(anno)->anno.value(), 
+				(value)->(gamepadButtonFields = makeIfNull(gamepadButtonFields)).put(value, f)
+			);
+			annotationFill(
+				isValidGamepadAxisInputField(f), 
+				(anno)->anno.value(), 
+				(value)->(gamepadAxisFields = makeIfNull(gamepadAxisFields)).put(value, f)
+			);
+			annotationFill(
+				isValidJoystickHatInputField(f), 
+				(anno)->anno.value(), 
+				(value)->(joystickHatFields = makeIfNull(joystickHatFields)).put(value, f)
+			);
 		}
 		
 		for (Method m : clazz.getMethods())
 		{
-			// ignore non-public, non-static
-			if ((m.getModifiers() & Modifier.PUBLIC) == 0)
-				continue;
-			if ((m.getModifiers() & Modifier.STATIC) != 0)
+			if (!isPotentialMember(m))
 				continue;
 			
-			// TODO: Finish.	
+			annotationFill(
+				isValidKeyInputSetterMethod(m), 
+				(anno)->anno.value(), 
+				(value)->(keyMethods = makeIfNull(keyMethods)).put(value, m)
+			);
+			annotationFill(
+				isValidMouseButtonInputSetterMethod(m), 
+				(anno)->anno.value(), 
+				(value)->(mouseButtonMethods = makeIfNull(mouseButtonMethods)).put(value, m)
+			);
+			annotationFill(
+				isValidMouseAxisInputSetterMethod(m), 
+				(anno)->anno.value(), 
+				(value)->(mouseAxisMethods = makeIfNull(mouseAxisMethods)).put(value, m)
+			);
+			annotationFill(
+				isValidMouseScrollInputSetterMethod(m), 
+				(anno)->anno.value(), 
+				(value)->(mouseScrollMethods = makeIfNull(mouseScrollMethods)).put(value, m)
+			);
+			annotationFill(
+				isValidGamepadButtonInputSetterMethod(m), 
+				(anno)->anno.value(), 
+				(value)->(gamepadButtonMethods = makeIfNull(gamepadButtonMethods)).put(value, m)
+			);
+			annotationFill(
+				isValidGamepadAxisInputSetterMethod(m), 
+				(anno)->anno.value(), 
+				(value)->(gamepadAxisMethods = makeIfNull(gamepadAxisMethods)).put(value, m)
+			);
+			annotationFill(
+				isValidJoystickHatInputSetterMethod(m), 
+				(anno)->anno.value(), 
+				(value)->(joystickHatMethods = makeIfNull(joystickHatMethods)).put(value, m)
+			);
+
+			if (isValidKeyEventMethod(m) != null)
+				keyEventMethod = m;
+			if (isValidMouseButtonEventMethod(m) != null)
+				mouseButtonEventMethod = m;
+			if (isValidMouseAxisEventMethod(m) != null)
+				mouseAxisEventMethod = m;
+			if (isValidMouseWheelEventMethod(m) != null)
+				mouseScrollEventMethod = m;
+			if (isValidGamepadButtonEventMethod(m) != null)
+				gamepadButtonEventMethod = m;
+			if (isValidGamepadAxisEventMethod(m) != null)
+				gamepadAxisEventMethod = m;
+			if (isValidJoystickHatEventMethod(m) != null)
+				joystickHatEventMethod = m;
+			if (isValidChangeEventMethod(m) != null)
+				changeEventMethod = m;
 		}
 		
 		this.instance = instance;
@@ -77,7 +180,7 @@ public class InputObjectProfile
 	 */
 	public boolean handlesKeys()
 	{
-		return !keyFields.isEmpty() || !keyMethods.isEmpty() || keyEventMethod != null;
+		return !isEmpty(keyFields) || !isEmpty(keyMethods) || !isEmpty(keyEventMethod);
 	}
 	
 	/**
@@ -86,7 +189,7 @@ public class InputObjectProfile
 	 */
 	public boolean handlesMouseButtons()
 	{
-		return !mouseButtonFields.isEmpty() || !mouseButtonMethods.isEmpty() || mouseButtonEventMethod != null;
+		return !isEmpty(mouseButtonFields) || !isEmpty(mouseButtonMethods) || !isEmpty(mouseButtonEventMethod);
 	}
 	
 	/**
@@ -95,7 +198,16 @@ public class InputObjectProfile
 	 */
 	public boolean handlesMouseAxes()
 	{
-		return !mouseAxisFields.isEmpty() || !mouseAxisMethods.isEmpty() || mouseAxisEventMethod != null;
+		return !isEmpty(mouseAxisFields) || !isEmpty(mouseAxisMethods) || !isEmpty(mouseAxisEventMethod);
+	}
+	
+	/**
+	 * Checks if this object handles mouse scroll events.
+	 * @return true if so, false if not. 
+	 */
+	public boolean handlesMouseScroll()
+	{
+		return !isEmpty(mouseScrollFields) || !isEmpty(mouseScrollMethods) || !isEmpty(mouseScrollEventMethod);
 	}
 	
 	/**
@@ -104,7 +216,7 @@ public class InputObjectProfile
 	 */
 	public boolean handlesGamepadButtons()
 	{
-		return !gamepadButtonFields.isEmpty() || !gamepadButtonMethods.isEmpty() || gamepadButtonEventMethod != null;
+		return !isEmpty(gamepadButtonFields) || !isEmpty(gamepadButtonMethods) || !isEmpty(gamepadButtonEventMethod);
 	}
 	
 	/**
@@ -113,7 +225,7 @@ public class InputObjectProfile
 	 */
 	public boolean handlesGamepadAxes()
 	{
-		return !gamepadAxisFields.isEmpty() || !gamepadAxisMethods.isEmpty() || gamepadAxisEventMethod != null;
+		return !isEmpty(gamepadAxisFields) || !isEmpty(gamepadAxisMethods) || !isEmpty(gamepadAxisEventMethod);
 	}
 	
 	/**
@@ -122,7 +234,7 @@ public class InputObjectProfile
 	 */
 	public boolean handlesJoystickHats()
 	{
-		return !joystickHatFields.isEmpty() || !joystickHatMethods.isEmpty() || joystickHatEventMethod != null;
+		return !isEmpty(joystickHatFields) || !isEmpty(joystickHatMethods) || !isEmpty(joystickHatEventMethod);
 	}
 	
 	/**
@@ -161,213 +273,335 @@ public class InputObjectProfile
 		return fireEvent(mouseAxisFields, mouseAxisMethods, mouseAxisEventMethod, type, amount);
 	}
 	
-	// TODO: Finish this.
+	/**
+	 * Fires a mouse scroll event to this object.
+	 * @param type the mouse axis type.
+	 * @param amount the scroll amount on the axis.
+	 * @return true if handled by this object, false if not. 
+	 * @throws InputDispatchException if a field or method could not be invoked.
+	 */
+	public boolean fireMouseScroll(MouseAxisType type, double amount)
+	{
+		return fireEvent(mouseScrollFields, mouseScrollMethods, mouseScrollEventMethod, type, amount);
+	}
+	
+	/**
+	 * Fires a gamepad button event to this object.
+	 * @param type the gamepad button type.
+	 * @param pressed true if pressed, false if released.
+	 * @return true if handled by this object, false if not. 
+	 * @throws InputDispatchException if a field or method could not be invoked.
+	 */
+	public boolean fireGamepadButton(GamepadButtonType type, boolean pressed)
+	{
+		return fireEvent(gamepadButtonFields, gamepadButtonMethods, gamepadButtonEventMethod, type, pressed);
+	}
+	
+	/**
+	 * Fires a gamepad axis event to this object.
+	 * @param type the gamepad axis type.
+	 * @param value the movement on the axis.
+	 * @return true if handled by this object, false if not. 
+	 * @throws InputDispatchException if a field or method could not be invoked.
+	 */
+	public boolean fireGamepadAxis(GamepadAxisType type, double value)
+	{
+		return fireEvent(gamepadAxisFields, gamepadAxisMethods, gamepadAxisEventMethod, type, value);
+	}
+	
+	/**
+	 * Fires a joystick hat event to this object.
+	 * @param index the hat index on the device.
+	 * @param type the joystick hat type.
+	 * @return true if handled by this object, false if not. 
+	 * @throws InputDispatchException if a field or method could not be invoked.
+	 */
+	public boolean fireJoystickHat(int index, JoystickHatType type)
+	{
+		return fireEvent(joystickHatFields, joystickHatMethods, joystickHatEventMethod, index, type);
+	}
+	
+	/**
+	 * Fires an "input changed" event to this object.
+	 * @return true if handled by this object, false if not. 
+	 * @throws InputDispatchException if a field or method could not be invoked.
+	 */
+	public boolean fireChange()
+	{
+		if (changeEventMethod != null)
+		{
+			invokeBlind(instance, changeEventMethod);
+			return true;
+		}
+		return false;
+	}
 	
 	// Fires an event to the handlers.
 	private <T> boolean fireEvent(Map<T, Field> fieldMap, Map<T, Method> methodMap, Method eventMethod, T type, Object value)
 	{
+		return fireEvent(fieldMap.get(type), methodMap.get(type), eventMethod, type, value);
+	}
+
+	// Fires an event to the handlers.
+	private <T> boolean fireEvent(Field field, Method method, Method eventMethod, T type, Object value)
+	{
 		boolean handled = false;
-		Field field;
-		if ((field = fieldMap.get(type)) != null)
+		if (field != null)
 		{
 			setFieldValue(instance, field, value);
 			handled = true;
 		}
-	
-		Method method;
-		if ((method = methodMap.get(type)) != null)
+		if (method != null)
 		{
 			invokeBlind(instance, method, value);
 			handled = true;
 		}
-		if ((method = eventMethod) != null)
+		if (eventMethod != null)
 		{
-			invokeBlind(instance, method, type, value);
+			invokeBlind(instance, eventMethod, type, value);
 			handled = true;
 		}
-		
-		if (handled && (method = changeEventMethod) != null)
-			invokeBlind(instance, method);
 		
 		return handled;
 	}
 
+	// Checks if a field is a potential input target.
+	private static boolean isPotentialMember(Field field)
+	{
+		int modifiers = field.getModifiers();
+		return 
+			(modifiers & Modifier.PUBLIC) != 0
+			&& (modifiers & Modifier.STATIC) == 0
+		;
+	}
+	
+	// Checks if a method is a potential input target.
+	private static boolean isPotentialMember(Method method)
+	{
+		int modifiers = method.getModifiers();
+		return 
+			(modifiers & Modifier.PUBLIC) != 0
+			&& (modifiers & Modifier.STATIC) == 0
+		;
+	}
+	
+	// Checks for a field annotation and type.
+	private static <A extends Annotation> A checkInputFieldAnnotationType(Field field, Class<A> annotationClass, Class<?> validFieldClass)
+	{
+		A annotation;
+		if ((annotation = field.getAnnotation(annotationClass)) == null)
+			return null;
+		
+		Class<?> type = field.getType();
+		if (type == validFieldClass)
+			return annotation;
+		
+		throw new InputSetupException(
+			"Field " + field.toString() + " is annotated with " + 
+			annotationClass.getSimpleName() + " but does not have one of the following types: " + 
+			validFieldClass.getSimpleName()
+		);
+	}
+	
+	// Checks for a method annotation and parameter types.
+	private static <A extends Annotation> A checkInputMethodAnnotationType(Method method, Class<A> annotationClass, Class<?> ... validMethodParameters)
+	{
+		A annotation;
+		if ((annotation = method.getAnnotation(annotationClass)) == null)
+			return null;
+		
+		Class<?>[] parameterTypes = method.getParameterTypes();
+		
+		if (validMethodParameters.length != parameterTypes.length)
+		{
+			throw new InputSetupException(
+				"Method " + method.toString() + " is annotated with " + 
+				annotationClass.getSimpleName() + " but has the incorrect amount of parameters. Requires: " + 
+				Arrays.toString(validMethodParameters)
+			);
+		}
+		
+		for (int i = 0; i < parameterTypes.length; i++)
+		{
+			if (validMethodParameters[i] != parameterTypes[i])
+			{
+				throw new InputSetupException(
+					"Method " + method.toString() + " is annotated with " + 
+					annotationClass.getSimpleName() + " but does not have one of the following types: " + 
+					Arrays.toString(validMethodParameters)
+				);
+			}
+		}
+		return annotation;
+	}
+		
 	// Checks if a field is suitable for using as a target for key actions.
 	// See @InputKey.
-	private static boolean isValidKeyInputField(Field field)
+	private static InputKey isValidKeyInputField(Field field)
 	{
-		// TODO: Finish this.
-		return false;
+		return checkInputFieldAnnotationType(field, InputKey.class, Boolean.TYPE);
 	}
 
 	// Checks if a field is suitable for using as a target for mouse button actions.
 	// See @InputMouseButton.
-	private static boolean isValidMouseButtonInputField(Field field)
+	private static InputMouseButton isValidMouseButtonInputField(Field field)
 	{
-		// TODO: Finish this.
-		return false;
+		return checkInputFieldAnnotationType(field, InputMouseButton.class, Boolean.TYPE);
 	}
 
 	// Checks if a field is suitable for using as a target for mouse axis actions.
 	// See @InputMouseAxis.
-	private static boolean isValidMouseAxisInputField(Field field)
+	private static InputMouseAxis isValidMouseAxisInputField(Field field)
 	{
-		// TODO: Finish this.
-		return false;
+		return checkInputFieldAnnotationType(field, InputMouseAxis.class, Double.TYPE);
 	}
 
 	// Checks if a method is suitable for using as a target for mouse wheel actions.
 	// See @InputMouseWheel.
-	private static boolean isValidMouseWheelInputField(Field field)
+	private static InputMouseScroll isValidMouseScrollInputField(Field field)
 	{
-		// TODO: Finish this.
-		return false;
+		return checkInputFieldAnnotationType(field, InputMouseScroll.class, Double.TYPE);
 	}
 
 	// Checks if a field is suitable for using as a target for gamepad button actions.
 	// See @InputGamepadButton.
-	private static boolean isValidGamepadButtonInputField(Field field)
+	private static InputGamepadButton isValidGamepadButtonInputField(Field field)
 	{
-		// TODO: Finish this.
-		return false;
+		return checkInputFieldAnnotationType(field, InputGamepadButton.class, Boolean.TYPE);
 	}
 
 	// Checks if a field is suitable for using as a target for gamepad axis actions.
 	// See @InputGamepadAxis.
-	private static boolean isValidGamepadAxisInputField(Field field)
+	private static InputGamepadAxis isValidGamepadAxisInputField(Field field)
 	{
-		// TODO: Finish this.
-		return false;
+		return checkInputFieldAnnotationType(field, InputGamepadAxis.class, Boolean.TYPE);
 	}
 
 	// Checks if a field is suitable for using as a target for joystick hat actions.
-	// See @OnGamepadJoystickHatAction.
-	private static boolean isValidJoystickHatInputField(Field field)
+	// See @InputJoystickHat.
+	private static InputJoystickHat isValidJoystickHatInputField(Field field)
 	{
-		// TODO: Finish this.
-		return false;
+		return checkInputFieldAnnotationType(field, InputJoystickHat.class, JoystickHatType.class);
 	}
 
 	// Checks if a method is suitable for using as a target for key actions.
 	// See @InputKey.
-	private static boolean isValidKeyInputSetterMethod(Method method)
+	private static InputKey isValidKeyInputSetterMethod(Method method)
 	{
-		// TODO: Finish this.
-		return false;
+		return checkInputMethodAnnotationType(method, InputKey.class, Boolean.TYPE);
 	}
 
 	// Checks if a method is suitable for using as a target for mouse button actions.
 	// See @InputMouseButton.
-	private static boolean isValidMouseButtonInputSetterMethod(Method method)
+	private static InputMouseButton isValidMouseButtonInputSetterMethod(Method method)
 	{
-		// TODO: Finish this.
-		return false;
+		return checkInputMethodAnnotationType(method, InputMouseButton.class, Boolean.TYPE);
 	}
 
 	// Checks if a method is suitable for using as a target for mouse axis actions.
 	// See @InputMouseAxis.
-	private static boolean isValidMouseAxisInputSetterMethod(Method method)
+	private static InputMouseAxis isValidMouseAxisInputSetterMethod(Method method)
 	{
-		// TODO: Finish this.
-		return false;
+		return checkInputMethodAnnotationType(method, InputMouseAxis.class, Double.TYPE);
 	}
 
 	// Checks if a method is suitable for using as a target for mouse wheel actions.
 	// See @InputMouseWheel.
-	private static boolean isValidMouseWheelInputSetterMethod(Method method)
+	private static InputMouseScroll isValidMouseScrollInputSetterMethod(Method method)
 	{
-		// TODO: Finish this.
-		return false;
+		return checkInputMethodAnnotationType(method, InputMouseScroll.class, Double.TYPE);
 	}
 
 	// Checks if a method is suitable for using as a target for gamepad button actions.
 	// See @InputGamepadButton.
-	private static boolean isValidGamepadButtonInputSetterMethod(Method method)
+	private static InputGamepadButton isValidGamepadButtonInputSetterMethod(Method method)
 	{
-		// TODO: Finish this.
-		return false;
+		return checkInputMethodAnnotationType(method, InputGamepadButton.class, Boolean.TYPE);
 	}
 
 	// Checks if a method is suitable for using as a target for gamepad axis actions.
 	// See @InputGamepadAxis.
-	private static boolean isValidGamepadAxisInputSetterMethod(Method method)
+	private static InputGamepadAxis isValidGamepadAxisInputSetterMethod(Method method)
 	{
-		// TODO: Finish this.
-		return false;
+		return checkInputMethodAnnotationType(method, InputGamepadAxis.class, Double.TYPE);
 	}
 
 	// Checks if a method is suitable for using as a target for joystick hat actions.
-	// See @OnGamepadJoystickHatAction.
-	private static boolean isValidJoystickHatInputSetterMethod(Method method)
+	// See @InputJoystickHat.
+	private static InputJoystickHat isValidJoystickHatInputSetterMethod(Method method)
 	{
-		// TODO: Finish this.
-		return false;
+		return checkInputMethodAnnotationType(method, InputJoystickHat.class, JoystickHatType.class);
 	}
 
 	// Checks if a method is suitable for using as a target for key actions.
 	// See @OnKeyAction.
-	private static boolean isValidKeyEventMethod(Method method)
+	private static OnKeyAction isValidKeyEventMethod(Method method)
 	{
-		// TODO: Finish this.
-		return false;
+		return checkInputMethodAnnotationType(method, OnKeyAction.class, KeyType.class, Boolean.TYPE);
 	}
 
 	// Checks if a method is suitable for using as a target for mouse button actions.
 	// See @OnMouseButtonAction.
-	private static boolean isValidMouseButtonEventMethod(Method method)
+	private static OnMouseButtonAction isValidMouseButtonEventMethod(Method method)
 	{
-		// TODO: Finish this.
-		return false;
+		return checkInputMethodAnnotationType(method, OnMouseButtonAction.class, MouseButtonType.class, Boolean.TYPE);
 	}
 
 	// Checks if a method is suitable for using as a target for mouse axis actions.
 	// See @OnMouseAxisAction.
-	private static boolean isValidMouseAxisEventMethod(Method method)
+	private static OnMouseAxisAction isValidMouseAxisEventMethod(Method method)
 	{
-		// TODO: Finish this.
-		return false;
+		return checkInputMethodAnnotationType(method, OnMouseAxisAction.class, MouseAxisType.class, Double.TYPE);
 	}
 
 	// Checks if a method is suitable for using as a target for mouse wheel actions.
 	// See @OnMouseWheelAction.
-	private static boolean isValidMouseWheelEventMethod(Method method)
+	private static OnMouseScrollAction isValidMouseWheelEventMethod(Method method)
 	{
-		// TODO: Finish this.
-		return false;
+		return checkInputMethodAnnotationType(method, OnMouseScrollAction.class, MouseAxisType.class, Double.TYPE);
 	}
 
 	// Checks if a method is suitable for using as a target for gamepad button actions.
 	// See @OnGamepadButtonAction.
-	private static boolean isValidGamepadButtonEventMethod(Method method)
+	private static OnGamepadButtonAction isValidGamepadButtonEventMethod(Method method)
 	{
-		// TODO: Finish this.
-		return false;
+		return checkInputMethodAnnotationType(method, OnGamepadButtonAction.class, GamepadButtonType.class, Boolean.TYPE);
 	}
 
 	// Checks if a method is suitable for using as a target for gamepad axis actions.
 	// See @OnGamepadAxisAction.
-	private static boolean isValidGamepadAxisEventMethod(Method method)
+	private static OnGamepadAxisAction isValidGamepadAxisEventMethod(Method method)
 	{
-		// TODO: Finish this.
-		return false;
+		return checkInputMethodAnnotationType(method, OnGamepadAxisAction.class, GamepadAxisType.class, Double.TYPE);
 	}
 
 	// Checks if a method is suitable for using as a target for joystick hat actions.
-	// See @OnGamepadJoystickHatAction.
-	private static boolean isValidJoystickHatEventMethod(Method method)
+	// See @OnJoystickHatAction.
+	private static OnJoystickHatAction isValidJoystickHatEventMethod(Method method)
 	{
-		// TODO: Finish this.
-		return false;
+		return checkInputMethodAnnotationType(method, OnJoystickHatAction.class, Integer.TYPE, JoystickHatType.class);
 	}
 
 	// Checks if a method is suitable for using as a target for calling after any change.
 	// See @OnChange.
-	private static boolean isValidChangeEventMethod(Method method)
+	private static OnChange isValidChangeEventMethod(Method method)
 	{
-		// TODO: Finish this.
-		return false;
+		return checkInputMethodAnnotationType(method, OnChange.class);
 	}
 
+	// Creates an empty map if map is null, else return parameter.
+	private static <A extends Annotation, K, M> void annotationFill(A annotation, Function<A, K> valueExtractor, Function<K, M> filler)
+	{
+		if (annotation != null)
+			filler.apply(valueExtractor.apply(annotation));
+	}
+	
+	// Creates an empty map if map is null, else return parameter.
+	private static <K, V> Map<K, V> makeIfNull(Map<K, V> map)
+	{
+		return map != null ? map : new HashMap<>(4);
+	}
+	
 	/**
 	 * Sets the value of a field on an object.
 	 * @param instance the object instance to set the field on.
@@ -376,7 +610,7 @@ public class InputObjectProfile
 	 * @throws NullPointerException if the field or object provided is null.
 	 * @throws ClassCastException if the value could not be cast to the proper type.
 	 * @throws InputDispatchException if anything goes wrong (bad field name, 
-	 * bad target, bad argument, or can't access the field).
+	 * 		bad target, bad argument, or can't access the field).
 	 * @see Field#set(Object, Object)
 	 */
 	private static void setFieldValue(Object instance, Field field, Object value)
@@ -423,5 +657,24 @@ public class InputObjectProfile
 		return out;
 	}
 	
+	/**
+	 * Checks if a value is "empty."
+	 * The following is considered "empty":
+	 * <ul>
+	 * <li><i>Null</i> references.
+	 * <li>{@link Collection} objects where {@link Collection#isEmpty()} returns true.
+	 * </ul> 
+	 * @param obj the object to check.
+	 * @return true if the provided object is considered "empty", false otherwise.
+	 */
+	private static boolean isEmpty(Object obj)
+	{
+		if (obj == null)
+			return true;
+		else if (obj instanceof Map<?, ?>)
+			return ((Map<?, ?>)obj).isEmpty();
+		else
+			return false;
+	}
+	
 }
-
