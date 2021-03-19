@@ -1,9 +1,7 @@
 package com.blackrook.gloop.glfw;
 
 import java.io.PrintStream;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.lwjgl.glfw.GLFW;
@@ -13,7 +11,7 @@ import org.lwjgl.system.MemoryUtil;
 import com.blackrook.gloop.glfw.exception.GLFWException;
 
 /**
- * GLFW initializer state.
+ * GLFW context state.
  * @author Matthew Tropiano
  */
 public final class GLFWContext 
@@ -21,26 +19,7 @@ public final class GLFWContext
 	private static boolean initialized = false;
 	private static Map<GLFWWindow, Thread> WINDOW_TO_CONTEXT_THREAD;
 	private static Map<Thread, GLFWWindow> CONTEXT_THREAD_TO_WINDOW;
-	private static List<JoystickConnectionListener> LISTENERS_JOYSTICK;
-
-	/**
-	 * A listener interface for when joysticks/gamepads get 
-	 * connected or disconnected from GLFW.
-	 */
-	public interface JoystickConnectionListener
-	{
-		/**
-		 * Called when a joystick connects to the system.
-		 * @param joystickId the GLFW joystick id.
-		 */
-		void onJoystickConnect(int joystickId);
-
-		/**
-		 * Called when a joystick disconnects from the system.
-		 * @param joystickId the GLFW joystick id.
-		 */
-		void onJoystickDisconnect(int joystickId);
-	}
+	private static GLFWErrorCallback ERROR_STREAM_CALLBACK;
 
 	/**
 	 * Initializes GLFW.
@@ -52,35 +31,12 @@ public final class GLFWContext
 		if (initialized)
 			return;
 		
-		GLFWErrorCallback.createPrint(System.err).set();
 		if (!GLFW.glfwInit())
 			throw new GLFWException("GLFW initialization failed!");
 
 		GLFW.glfwDefaultWindowHints();
-		WINDOW_TO_CONTEXT_THREAD = new HashMap<>();
-		CONTEXT_THREAD_TO_WINDOW = new HashMap<>();
-		LISTENERS_JOYSTICK = new ArrayList<>();
-		
-		GLFW.glfwSetJoystickCallback((jid, event) -> 
-		{
-			switch (event)
-			{
-				case GLFW.GLFW_CONNECTED:
-				{
-					for (int i = 0; i < LISTENERS_JOYSTICK.size(); i++)
-						LISTENERS_JOYSTICK.get(i).onJoystickConnect(jid);
-				}
-				break;
-				
-				case GLFW.GLFW_DISCONNECTED:
-				{
-					for (int i = 0; i < LISTENERS_JOYSTICK.size(); i++)
-						LISTENERS_JOYSTICK.get(i).onJoystickDisconnect(jid);
-				}
-				break;
-			}
-		});
-		
+		WINDOW_TO_CONTEXT_THREAD = new HashMap<>(4);
+		CONTEXT_THREAD_TO_WINDOW = new HashMap<>(4);
 		initialized = true;
 	}
 	
@@ -96,7 +52,6 @@ public final class GLFWContext
 			return;
 		WINDOW_TO_CONTEXT_THREAD = null;
 		CONTEXT_THREAD_TO_WINDOW = null;
-		LISTENERS_JOYSTICK = null;
 		GLFW.glfwTerminate();
 		setErrorStream(null);
 		initialized = false;
@@ -104,15 +59,21 @@ public final class GLFWContext
 
 	/**
 	 * Sets the output stream for GLFW error callbacks.
+	 * This can be called before initialization.
 	 * <p><b>This must only be called from the main thread.</b>
 	 * @param stream the stream to print to. 
 	 */
 	public static void setErrorStream(PrintStream stream)
 	{
 		if (stream == null)
-			GLFW.glfwSetErrorCallback(null).free();
+		{
+			if (ERROR_STREAM_CALLBACK != null)
+				GLFW.glfwSetErrorCallback(null).free();
+		}
 		else
-			GLFWErrorCallback.createPrint(stream).set();
+		{
+			ERROR_STREAM_CALLBACK = GLFWErrorCallback.createPrint(stream).set();
+		}
 	}
 	
 	/**
@@ -170,9 +131,10 @@ public final class GLFWContext
 	}
 
 	/**
-	 * Polls all pending events.
-	 * Any event that came in from any window is flushed.
-	 * <p><b>This must only be called from the main thread.</b>
+	 * Polls and processes all pending events.
+	 * Any event that came in from any window is flushed and processed by bound listeners.
+	 * <p><b>This must only be called from the main thread. 
+	 * It is suggested that this be put in a loop at the end of initialization.</b>
 	 * <p><b>This must NOT be called from any callback or listener.</b>
 	 * @throws IllegalArgumentException if blanks is less than 0.
 	 */

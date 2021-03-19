@@ -133,6 +133,91 @@ public class GLFWWindow extends GLFWHandle
 		void onContentScaleChange(GLFWWindow window, float x, float y);
 		
 	}
+	
+	/**
+	 * An implementation of {@link WindowListener} that provides a blank, no-op 
+	 * implementation so that only the desired functions need overriding.
+	 */
+	public static class WindowAdapter implements WindowListener
+	{
+		@Override
+		public void onClose(GLFWWindow window)
+		{
+			// Do nothing.
+		}
+
+		@Override
+		public void onRefresh(GLFWWindow window)
+		{
+			// Do nothing.
+		}
+
+		@Override
+		public void onFocus(GLFWWindow window)
+		{
+			// Do nothing.
+		}
+
+		@Override
+		public void onBlur(GLFWWindow window)
+		{
+			// Do nothing.
+		}
+
+		@Override
+		public void onIconify(GLFWWindow window)
+		{
+			// Do nothing.
+		}
+
+		@Override
+		public void onRestore(GLFWWindow window)
+		{
+			// Do nothing.
+		}
+
+		@Override
+		public void onMaximize(GLFWWindow window)
+		{
+			// Do nothing.
+		}
+
+		@Override
+		public void onMouseEntered(GLFWWindow window)
+		{
+			// Do nothing.
+		}
+
+		@Override
+		public void onMouseExited(GLFWWindow window)
+		{
+			// Do nothing.
+		}
+
+		@Override
+		public void onPositionChange(GLFWWindow window, int x, int y)
+		{
+			// Do nothing.
+		}
+
+		@Override
+		public void onSizeChange(GLFWWindow window, int width, int height)
+		{
+			// Do nothing.
+		}
+
+		@Override
+		public void onFramebufferChange(GLFWWindow window, int width, int height)
+		{
+			// Do nothing.
+		}
+
+		@Override
+		public void onContentScaleChange(GLFWWindow window, float x, float y)
+		{
+			// Do nothing.
+		}
+	}
 
 	/**
 	 * An input event listener interface. 
@@ -208,8 +293,65 @@ public class GLFWWindow extends GLFWHandle
 	}
 	
 	/**
-	 * A drag 'n drop event listener interface. 
+	 * An implementation of {@link InputListener} that provides a blank, no-op 
+	 * implementation so that only the desired functions need overriding.
 	 */
+	public static class InputAdapter implements InputListener
+	{
+
+		@Override
+		public void onKeyPress(GLFWWindow window, int glfwKey, int scanCode, int modFlags)
+		{
+			// Do nothing.
+		}
+
+		@Override
+		public void onKeyRepeated(GLFWWindow window, int glfwKey, int scanCode, int modFlags)
+		{
+			// Do nothing.
+		}
+
+		@Override
+		public void onKeyRelease(GLFWWindow window, int glfwKey, int scanCode, int modFlags)
+		{
+			// Do nothing.
+		}
+
+		@Override
+		public void onKeyTyped(GLFWWindow window, char c)
+		{
+			// Do nothing.
+		}
+
+		@Override
+		public void onMousePosition(GLFWWindow window, double x, double y)
+		{
+			// Do nothing.
+		}
+
+		@Override
+		public void onMouseButtonPress(GLFWWindow window, int glfwButton, int modFlags)
+		{
+			// Do nothing.
+		}
+
+		@Override
+		public void onMouseButtonRelease(GLFWWindow window, int glfwButton, int modFlags)
+		{
+			// Do nothing.
+		}
+
+		@Override
+		public void onScroll(GLFWWindow window, double x, double y)
+		{
+			// Do nothing.
+		}
+	}
+	
+	/**
+	 * A drag 'n drop event listener interface.
+	 */
+	@FunctionalInterface
 	public static interface DropListener
 	{
 		/**
@@ -909,6 +1051,87 @@ public class GLFWWindow extends GLFWHandle
 			Callbacks.glfwFreeCallbacks(handle);
 			GLFW.glfwDestroyWindow(handle);
 			allocated = false;
+		}
+	}
+	
+	/**
+	 * Adds a {@link WindowListener} to this window for listening for window events.
+	 * Events are dispatched to listeners in the order added.
+	 * This method is thread safe.
+	 * @param listener the listener to add.
+	 */
+	public void addWindowListener(WindowListener listener)
+	{
+		synchronized (windowListeners)
+		{
+			windowListeners.add(listener);
+		}
+	}
+	
+	/**
+	 * Removes a {@link WindowListener} from this window.
+	 * This method is thread safe.
+	 * @param listener the listener to remove.
+	 */
+	public void removeWindowListener(WindowListener listener)
+	{
+		synchronized (windowListeners)
+		{
+			windowListeners.remove(listener);
+		}
+	}
+	
+	/**
+	 * Adds an {@link InputListener} to this window for listening for window events.
+	 * Events are dispatched to listeners in the order added.
+	 * This method is thread safe.
+	 * @param listener the listener to add.
+	 */
+	public void addInputListener(InputListener listener)
+	{
+		synchronized (inputListeners)
+		{
+			inputListeners.add(listener);
+		}
+	}
+	
+	/**
+	 * Removes an {@link InputListener} from this window.
+	 * This method is thread safe.
+	 * @param listener the listener to remove.
+	 */
+	public void removeInputListener(InputListener listener)
+	{
+		synchronized (inputListeners)
+		{
+			inputListeners.remove(listener);
+		}
+	}
+	
+	/**
+	 * Adds a {@link DropListener} to this window for listening for window events.
+	 * Events are dispatched to listeners in the order added.
+	 * This method is thread safe.
+	 * @param listener the listener to add.
+	 */
+	public void addDropListener(DropListener listener)
+	{
+		synchronized (dropListeners)
+		{
+			dropListeners.add(listener);
+		}
+	}
+	
+	/**
+	 * Removes a {@link DropListener} from this window.
+	 * This method is thread safe.
+	 * @param listener the listener to remove.
+	 */
+	public void removeDropListener(DropListener listener)
+	{
+		synchronized (dropListeners)
+		{
+			dropListeners.remove(listener);
 		}
 	}
 	
