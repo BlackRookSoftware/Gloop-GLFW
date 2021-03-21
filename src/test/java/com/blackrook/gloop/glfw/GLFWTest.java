@@ -48,7 +48,6 @@ public final class GLFWTest
 			.setResizable(true);
 		
 		inputSystem = new GLFWInputSystem();
-		inputSystem.enableJoysticks();
 
 		// Create the window
 		window = new GLFWWindow(hints, "Hello World!", 300, 300);
@@ -74,6 +73,8 @@ public final class GLFWTest
 				inputSystem.removeJoystickInputObject(joystickId);
 			}
 		});
+
+		inputSystem.enableJoysticks();
 
 		window.addDropListener((window, files) ->
 		{

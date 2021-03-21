@@ -90,8 +90,6 @@ public class GLFWInputSystem
 	private JoystickInputObject[] joystickInputObjects;
 	/** List of joystick event listeners. */
 	private List<JoystickConnectionListener> joystickListeners;
-	/** Allocated callback handle. */
-	private GLFWJoystickCallback joystickCallbackHandle;
 
 	/** Joystick setup semaphore. */
 	private Object joystickSetupMutex = new Object();
@@ -193,7 +191,6 @@ public class GLFWInputSystem
 		this.joystickIsPresent = null;
 		this.joystickInputObjects = null;
 		this.joystickListeners = new ArrayList<>(4);
-		this.joystickCallbackHandle = null;
 	}
 
 	/**
@@ -375,16 +372,18 @@ public class GLFWInputSystem
 	 */
 	public void enableJoysticks()
 	{
-		if (joystickCallbackHandle != null)
+		if (joystickIsPresent != null)
 			return;
 		
 		synchronized (joystickSetupMutex)
 		{
-			if (joystickCallbackHandle != null)
+			if (joystickIsPresent != null)
 				return;
 			
 			GLFWContext.init();
-			joystickCallbackHandle = GLFW.glfwSetJoystickCallback((jid, event) -> 
+			
+			GLFWJoystickCallback previous;
+			previous = GLFW.glfwSetJoystickCallback((jid, event) -> 
 			{
 				switch (event)
 				{
@@ -397,6 +396,8 @@ public class GLFWInputSystem
 						break;
 				}
 			});
+			if (previous != null)
+				previous.free();
 			
 			joystickIsPresent = new boolean[GLFW.GLFW_JOYSTICK_LAST + 1];
 			joystickInputObjects = new JoystickInputObject[GLFW.GLFW_JOYSTICK_LAST + 1];
@@ -416,12 +417,8 @@ public class GLFWInputSystem
 	 */
 	public void disableJoysticks()
 	{
-		if (joystickCallbackHandle == null)
-			return;
 		joystickIsPresent = null;
 		joystickInputObjects = null;
-		joystickCallbackHandle.free();
-		joystickCallbackHandle = null;
 	}
 	
 	/**

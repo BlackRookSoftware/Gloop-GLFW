@@ -1068,6 +1068,15 @@ public class GLFWWindow extends GLFWHandle
 		this.dropListeners = new ArrayList<>(4);
 	}
 	
+	// Accept and verify handle.
+	private void acceptHandle(long handle)
+	{
+		this.handle = handle;
+		if (this.handle == MemoryUtil.NULL)
+			throw new GLFWException("Window could not be created!");
+		this.allocated = true;
+	}
+	
 	// Init window listeners.
 	private void initListeners()
 	{
@@ -1222,16 +1231,13 @@ public class GLFWWindow extends GLFWHandle
 	 * @param height the window's initial height.
 	 * @throws GLFWException if the window could not be created.
 	 * @see WindowHints
-	 * @See {@link GLFW#glfwCreateWindow(int, int, CharSequence, long, long)}
+	 * @see GLFW#glfwCreateWindow(int, int, CharSequence, long, long)
 	 */
 	public GLFWWindow(WindowHints hints, String title, int width, int height) 
 	{
 		this();
 		hints.setHints();
-		this.handle = GLFW.glfwCreateWindow(width, height, title, MemoryUtil.NULL, MemoryUtil.NULL);
-		if (this.handle == MemoryUtil.NULL)
-			throw new GLFWException("Window could not be created!");
-		this.allocated = true;
+		acceptHandle(GLFW.glfwCreateWindow(width, height, title, MemoryUtil.NULL, MemoryUtil.NULL));
 		initListeners();
 	}
 		
@@ -1245,16 +1251,13 @@ public class GLFWWindow extends GLFWHandle
 	 * @param height the window's initial height.
 	 * @throws GLFWException if the window could not be created.
 	 * @see WindowHints
-	 * @See {@link GLFW#glfwCreateWindow(int, int, CharSequence, long, long)}
+	 * @see GLFW#glfwCreateWindow(int, int, CharSequence, long, long)
 	 */
 	public GLFWWindow(WindowHints hints, GLFWWindow sharedWindow, String title, int width, int height) 
 	{
 		this();
 		hints.setHints();
-		this.handle = GLFW.glfwCreateWindow(width, height, title, MemoryUtil.NULL, sharedWindow.getHandle());
-		if (this.handle == MemoryUtil.NULL)
-			throw new GLFWException("Window could not be created!");
-		this.allocated = true;
+		acceptHandle(GLFW.glfwCreateWindow(width, height, title, MemoryUtil.NULL, sharedWindow.getHandle()));
 		initListeners();
 	}
 		
@@ -1268,16 +1271,13 @@ public class GLFWWindow extends GLFWHandle
 	 * @param height the window's initial height.
 	 * @throws GLFWException if the window could not be created.
 	 * @see WindowHints
-	 * @See {@link GLFW#glfwCreateWindow(int, int, CharSequence, long, long)}
+	 * @see GLFW#glfwCreateWindow(int, int, CharSequence, long, long)
 	 */
 	public GLFWWindow(WindowHints hints, GLFWMonitor monitor, String title, int width, int height) 
 	{
 		this();
 		hints.setHints();
-		this.handle = GLFW.glfwCreateWindow(width, height, title, monitor.getHandle(), MemoryUtil.NULL);
-		if (this.handle == MemoryUtil.NULL)
-			throw new GLFWException("Window could not be created!");
-		this.allocated = true;
+		acceptHandle(GLFW.glfwCreateWindow(width, height, title, monitor.getHandle(), MemoryUtil.NULL));
 		initListeners();
 	}
 		
@@ -1292,16 +1292,13 @@ public class GLFWWindow extends GLFWHandle
 	 * @param height the window's initial height.
 	 * @throws GLFWException if the window could not be created.
 	 * @see WindowHints
-	 * @See {@link GLFW#glfwCreateWindow(int, int, CharSequence, long, long)}
+	 * @see GLFW#glfwCreateWindow(int, int, CharSequence, long, long)
 	 */
 	public GLFWWindow(WindowHints hints, GLFWMonitor monitor, GLFWWindow sharedWindow, String title, int width, int height) 
 	{
 		this();
 		hints.setHints();
-		this.handle = GLFW.glfwCreateWindow(width, height, title, monitor.getHandle(), sharedWindow.getHandle());
-		if (this.handle == MemoryUtil.NULL)
-			throw new GLFWException("Window could not be created!");
-		this.allocated = true;
+		acceptHandle(GLFW.glfwCreateWindow(width, height, title, monitor.getHandle(), sharedWindow.getHandle()));
 		initListeners();
 	}
 		
