@@ -1,13 +1,13 @@
 package com.blackrook.gloop.glfw;
 
-import java.awt.Dimension;
 import java.util.Arrays;
 
 import org.lwjgl.Version;
-import org.lwjgl.glfw.GLFWVidMode;
 
-import com.blackrook.gloop.glfw.input.GLFWInputSystem;
-import com.blackrook.gloop.glfw.input.GLFWInputSystem.JoystickConnectionListener;
+import com.blackrook.gloop.glfw.GLFWInputSystem.JoystickConnectionListener;
+import com.blackrook.gloop.glfw.GLFWWindow.CursorMode;
+import com.blackrook.gloop.glfw.GLFWWindow.WindowHints;
+import com.blackrook.gloop.glfw.GLFWWindow.WindowListener;
 import com.blackrook.gloop.glfw.input.annotation.OnJoystickAxisAction;
 import com.blackrook.gloop.glfw.input.annotation.OnJoystickButtonAction;
 import com.blackrook.gloop.glfw.input.annotation.OnJoystickHatAction;
@@ -29,30 +29,22 @@ public final class GLFWTest
 	private GLFWWindow window; 
 	private GLFWInputSystem inputSystem;
 
-	public void run() 
-	{
-		System.out.println("Hello LWJGL " + Version.getVersion() + "!");
-		init();
-		GLFWContext.mainLoop(window, inputSystem);
-	}
-	
 	private void init()
 	{
 		// Setup an error callback. The default implementation
 		// will print the error message in System.err.
 		GLFWContext.setErrorStream(System.err);
 		
-		GLFWContext.init();
-
 		// Configure GLFW
-		GLFWWindow.Hints.reset();            // optional, the current window hints are already the default
-		GLFWWindow.Hints.setVisible(false);  // the window will stay hidden after creation
-		GLFWWindow.Hints.setResizable(true); // the window will be resizable
+		WindowHints hints = (new WindowHints())
+			.setVisible(false)
+			.setResizable(true);
 		
 		inputSystem = new GLFWInputSystem();
-				
+		inputSystem.enableJoysticks();
+
 		// Create the window
-		window = new GLFWWindow("Hello World!", 300, 300);
+		window = new GLFWWindow(hints, "Hello World!", 300, 300);
 
 		inputSystem.attachToWindow(window);
 		inputSystem.addInputObject(new Keyboard());
@@ -80,30 +72,108 @@ public final class GLFWTest
 		{
 			System.out.println(Arrays.toString(files));
 		});
-		
-		inputSystem.enableJoysticks();
 
-		// Get the resolution of the primary monitor
-		GLFWVidMode vidmode = GLFWMonitor.getPrimaryMonitor().getVideoMode();
+		window.addWindowListener(new WindowListener()
+		{
+			@Override
+			public void onSizeChange(GLFWWindow window, int width, int height)
+			{
+				System.out.println("Window Size Change: " + width + ", " + height);
+			}
+			
+			@Override
+			public void onRestore(GLFWWindow window)
+			{
+				System.out.println("Window Restore");
+			}
+			
+			@Override
+			public void onRefresh(GLFWWindow window)
+			{
+				System.out.println("Window Refresh");
+			}
+			
+			@Override
+			public void onPositionChange(GLFWWindow window, int x, int y)
+			{
+				System.out.println("Window Position Change: " + x + ", " + y);
+			}
+			
+			@Override
+			public void onMouseExited(GLFWWindow window)
+			{
+				System.out.println("Mouse Exit");
+			}
+			
+			@Override
+			public void onMouseEntered(GLFWWindow window)
+			{
+				System.out.println("Mouse Entered");
+			}
+			
+			@Override
+			public void onMaximize(GLFWWindow window)
+			{
+				System.out.println("Window Maximize");
+			}
+			
+			@Override
+			public void onIconify(GLFWWindow window)
+			{
+				System.out.println("Window Iconify");
+			}
+			
+			@Override
+			public void onFramebufferChange(GLFWWindow window, int width, int height)
+			{
+				System.out.println("Window Framebuffer Change: " + width + ", " + height);
+			}
+			
+			@Override
+			public void onFocus(GLFWWindow window)
+			{
+				System.out.println("Window Focus");
+			}
+			
+			@Override
+			public void onContentScaleChange(GLFWWindow window, float x, float y)
+			{
+				System.out.println("Window Content Scale Change: " + x + ", " + y);
+			}
+			
+			@Override
+			public void onClose(GLFWWindow window)
+			{
+				System.out.println("Window Close");
+			}
+			
+			@Override
+			public void onBlur(GLFWWindow window)
+			{
+				System.out.println("Window Blur");
+			}
+		});
 		
-		// Center window.
-		Dimension dimension = window.getSize();
-		window.setPosition(
-			(vidmode.width() - (int)dimension.getWidth()) / 2,
-			(vidmode.height() - (int)dimension.getHeight()) / 2
-		);
+		window.center(GLFWMonitor.getPrimaryMonitor());
+
+		GLFWContext.makeWindowContextCurrent(window);
 
 		// Enable v-sync
 		GLFWContext.setSwapInterval(1);
 
-		GLFWContext.makeWindowContextCurrent(window);
+		// Swap buffers every poll loop.
+		GLFWContext.addRunnableAlways(()->window.swapBuffers());
 
 		// Make the window visible
 		window.setVisible(true);
-		
-		GLFWContext.addAlwaysRunnable(()->window.swapBuffers());
 	}
 
+	public void run() 
+	{
+		init();
+		GLFWContext.mainLoop(window, inputSystem);
+	}
+	
 	public class Keyboard
 	{
 		@OnKeyAction
@@ -116,7 +186,31 @@ public final class GLFWTest
 		@OnKeyTypedAction
 		public void onType(char c)
 		{
-			System.out.println(c);
+			switch (c)
+			{
+				case 'j':
+					GLFWContext.addRunnableOnce(()->inputSystem.enableJoysticks());
+					System.out.println("Joysticks enabled.");
+					break;
+				case 'J':
+					GLFWContext.addRunnableOnce(()->inputSystem.disableJoysticks());
+					System.out.println("Joysticks disabled.");
+					break;
+				case 'c':
+					GLFWContext.addRunnableOnce(()->{
+						window.setRawMouseMotion(false);
+						window.setCursorMode(CursorMode.NORMAL);
+					});
+					System.out.println("Cursor enabled.");
+					break;
+				case 'C':
+					GLFWContext.addRunnableOnce(()->{
+						window.setRawMouseMotion(true);
+						window.setCursorMode(CursorMode.DISABLED);
+					});
+					System.out.println("Cursor disabled.");
+					break;
+			}
 		}
 		
 		@OnMouseAxisAction
@@ -168,6 +262,7 @@ public final class GLFWTest
 
 	public static void main(String[] args) 
 	{
+		System.out.println("Hello LWJGL " + Version.getVersion() + "!");
 		(new GLFWTest()).run();
 	}
 }

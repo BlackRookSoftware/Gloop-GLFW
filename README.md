@@ -21,12 +21,16 @@ may change many times in different ways over the course of its development!
 
 ### Required Java Modules
 
-[java.base](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/module-summary.html)  
+[java.desktop](https://docs.oracle.com/en/java/javase/11/docs/api/java.desktop/module-summary.html)  
+* [java.xml](https://docs.oracle.com/en/java/javase/11/docs/api/java.xml/module-summary.html)  
+* [java.datatransfer](https://docs.oracle.com/en/java/javase/11/docs/api/java.datatransfer/module-summary.html)  
+* [java.base](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/module-summary.html)  
 
 
 ### Introduction
 
-This library contains classes for encapsulating LWJGL's GLFW bindings.
+This library contains classes for encapsulating LWJGL's GLFW bindings, namely the window creation
+and input filtering libraries (and event encapsulation).
 
 
 ### Why?

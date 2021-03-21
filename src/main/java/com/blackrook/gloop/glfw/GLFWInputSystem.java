@@ -1,4 +1,4 @@
-package com.blackrook.gloop.glfw.input;
+package com.blackrook.gloop.glfw;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
@@ -18,7 +18,6 @@ import java.util.function.Function;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWJoystickCallback;
 
-import com.blackrook.gloop.glfw.GLFWWindow;
 import com.blackrook.gloop.glfw.GLFWWindow.InputListener;
 import com.blackrook.gloop.glfw.GLFWWindow.WindowListener;
 import com.blackrook.gloop.glfw.input.annotation.InputJoystickAxis;
@@ -88,7 +87,7 @@ public class GLFWInputSystem
 	private GLFWJoystickCallback joystickCallbackHandle;
 
 	/** Joystick setup semaphore. */
-	private Object joystickSetupSemaphore = new Object();
+	private Object joystickSetupMutex = new Object();
 
 	/** Default Joystick Parameters. */
 	private static final JoystickInputParameters DEFAULT_JOYSTICK_PARAMETERS = new JoystickInputParameters()
@@ -147,173 +146,6 @@ public class GLFWInputSystem
 		{
 			return JoystickButtonType.getById(glfwButtonId);
 		}
-	}
-	
-	/**
-	 * Joystick input object.
-	 */
-	private static class JoystickInputObject
-	{
-		/** Parameters for this object. */
-		private JoystickInputParameters parameters;
-		/** List of objects that handle joystick buttons. */
-		private List<InputObjectProfile> JoystickButtonHandlers;
-		/** List of objects that handle joystick axes. */
-		private List<InputObjectProfile> JoystickAxisHandlers;
-		/** List of objects that handle joystick hats. */
-		private List<InputObjectProfile> joystickHatHandlers;
-
-		private double[] previousAxisValues;
-		private Boolean[] previousButtonValues;
-		private Integer[] previousHatValues;
-		
-		private JoystickInputObject(JoystickInputParameters parameters, Object instance)
-		{
-			this.parameters = parameters;
-			this.JoystickButtonHandlers = null;
-			this.JoystickAxisHandlers = null;
-			this.joystickHatHandlers = null;
-
-			InputObjectProfile profile = new InputObjectProfile(instance);
-
-			if (profile.handlesJoystickButtons())
-				(JoystickButtonHandlers = makeIfNull(JoystickButtonHandlers)).add(profile);
-			if (profile.handlesJoystickAxes())
-				(JoystickAxisHandlers = makeIfNull(JoystickAxisHandlers)).add(profile);
-			if (profile.handlesJoystickHats())
-				(joystickHatHandlers = makeIfNull(joystickHatHandlers)).add(profile);
-		}
-		
-		/**
-		 * Updates controller poll data and send out events for the changes.
-		 * @param axisData the axis data from GLFW.
-		 * @param buttonData the button data from GLFW.
-		 * @param hatData the hat data from GLFW.
-		 */
-		public void update(FloatBuffer axisData, ByteBuffer buttonData, ByteBuffer hatData)
-		{
-			if (needInit())
-				initPreviousValues(axisData.capacity(), buttonData.capacity(), hatData.capacity());
-			for (int i = 0; i < axisData.capacity(); i++)
-				updateAxis(i, axisData.get(i));
-			for (int i = 0; i < buttonData.capacity(); i++)
-				updateButton(i, buttonData.get(i) == GLFW.GLFW_PRESS);
-			for (int i = 0; i < hatData.capacity(); i++)
-				updateHat(i, 0x0ff & hatData.get(i));
-		}
-		
-		// return true if previous value arrays have not been initialized.
-		private boolean needInit()
-		{
-			return previousAxisValues == null || previousButtonValues == null || previousHatValues == null;
-		}
-		
-		// Initializes the axis/button/hat registers.
-		private void initPreviousValues(int axisCount, int buttonCount, int hatCount)
-		{
-			if (previousAxisValues == null)
-			{
-				previousAxisValues = new double[axisCount];
-				Arrays.fill(previousAxisValues, Double.NaN);
-			}
-			if (previousButtonValues == null)
-			{
-				previousButtonValues = new Boolean[buttonCount];
-				Arrays.fill(previousButtonValues, null);
-			}
-			if (previousHatValues == null)
-			{
-				previousHatValues = new Integer[hatCount];
-				Arrays.fill(previousHatValues, null);
-			}
-		}
-
-		// Updates a single axis.
-		private void updateAxis(int index, double value)
-		{
-			if (previousAxisValues == null || index < 0 || index >= previousAxisValues.length)
-				return;
-
-			JoystickAxisType axisType;
-			if ((axisType = parameters.getJoystickAxisType(index)) == null)
-				return;
-			
-			double deadzone = parameters.getAxisDeadzone(axisType);
-			if (Math.abs(value) < deadzone)
-				value = 0.0;
-			
-			if (previousAxisValues[index] != value && Math.abs(value - previousAxisValues[index]) > parameters.getAxisPrecisionEpsilon())
-				fireJoystickAxisEvent(axisType, value);
-			previousAxisValues[index] = value;
-		}
-		
-		// Updates a single button.
-		private void updateButton(int index, boolean value)
-		{
-			if (previousButtonValues == null || index < 0 || index >= previousButtonValues.length)
-				return;
-			
-			JoystickButtonType buttonType;
-			if ((buttonType = parameters.getJoystickButtonType(index)) == null)
-				return;
-
-			if (previousButtonValues[index] == null || previousButtonValues[index] != value)
-				fireJoystickButtonEvent(buttonType, value);
-			previousButtonValues[index] = value;
-		}
-		
-		// Updates a single hat.
-		private void updateHat(int index, int value)
-		{
-			if (previousHatValues == null || index < 0 || index >= previousHatValues.length)
-				return;
-			if (previousHatValues[index] == null || previousHatValues[index] != value)
-				fireJoystickHatEvent(index, JoystickHatType.getById(value));
-			previousHatValues[index] = value;
-		}
-		
-		/**
-		 * Fires a gamepad button event in this system.
-		 * @param type the gamepad button type.
-		 * @param pressed true if pressed, false if released.
-		 * @return true if the event was handled by an object, false if not. 
-		 */
-		public boolean fireJoystickButtonEvent(JoystickButtonType type, boolean pressed)
-		{
-			boolean handled = false;
-			if (JoystickButtonHandlers != null) for (int i = 0; i < JoystickButtonHandlers.size(); i++)
-				handled |= JoystickButtonHandlers.get(i).fireJoystickButton(type, pressed);
-			return handled;
-		}
-		
-		/**
-		 * Fires a joystick axis event in this system. 
-		 * @param type the joystick axis type.
-		 * @param amount the amount moved.
-		 * @return true if the event was handled by an object, false if not. 
-		 */
-		public boolean fireJoystickAxisEvent(JoystickAxisType type, double amount)
-		{
-			boolean handled = false;
-			if (JoystickAxisHandlers != null) for (int i = 0; i < JoystickAxisHandlers.size(); i++)
-				handled |= JoystickAxisHandlers.get(i).fireJoystickAxis(type, amount);
-			return handled;
-		}
-		
-		/**
-		 * Fires a joystick hat event in this system. 
-		 * @param index the hat index on the device.
-		 * @param type the joystick hat type.
-		 * @return true if the event was handled by an object, false if not. 
-		 */
-		public boolean fireJoystickHatEvent(int index, JoystickHatType type)
-		{
-			boolean handled = false;
-			if (joystickHatHandlers != null) for (int i = 0; i < joystickHatHandlers.size(); i++)
-				handled |= joystickHatHandlers.get(i).fireJoystickHat(index, type);
-			return handled;
-		}
-		
 	}
 	
 	/**
@@ -428,7 +260,7 @@ public class GLFWInputSystem
 
 	/**
 	 * Adds a joystick-specific object that is annotated for receiving input events to this input system.
-	 * Adding or removing an object from this system in thread-safe.
+	 * Adding or removing an object from this system is thread-safe.
 	 * Adding a joystick where a JID is already used will remove the old one.
 	 * @param jid the joystick id.
 	 * @param inputObject the input object to add.
@@ -441,7 +273,7 @@ public class GLFWInputSystem
 	
 	/**
 	 * Adds a joystick-specific object that is annotated for receiving input events to this input system.
-	 * Adding or removing an object from this system in thread-safe.
+	 * Adding or removing an object from this system is thread-safe.
 	 * Adding a joystick where a JID is already used will remove the old one.
 	 * @param jid the joystick id.
 	 * @param parameters the joystick parameters.
@@ -539,11 +371,12 @@ public class GLFWInputSystem
 		if (joystickCallbackHandle != null)
 			return;
 		
-		synchronized (joystickSetupSemaphore)
+		synchronized (joystickSetupMutex)
 		{
 			if (joystickCallbackHandle != null)
 				return;
 			
+			GLFWContext.init();
 			joystickCallbackHandle = GLFW.glfwSetJoystickCallback((jid, event) -> 
 			{
 				switch (event)
@@ -593,6 +426,7 @@ public class GLFWInputSystem
 		if (joystickIsPresent == null)
 			return;
 		
+		GLFWContext.init();
 		for (int jid = 0; jid < joystickIsPresent.length; jid++)
 		{
 			if (!joystickIsPresent[jid])
@@ -613,27 +447,6 @@ public class GLFWInputSystem
 		}
 	}
 	
-	// Connect joystick.
-	private void connectJoystick(int jid)
-	{
-		for (int i = 0; i < joystickListeners.size(); i++)
-			joystickListeners.get(i).onJoystickConnect(
-				jid, 
-				GLFW.glfwJoystickIsGamepad(jid), 
-				GLFW.glfwGetJoystickGUID(jid), 
-				GLFW.glfwGetJoystickName(jid)
-			);
-		joystickIsPresent[jid] = true;
-	}
-
-	// Disconnect joystick.
-	private void disconnectJoystick(int jid)
-	{
-		for (int i = 0; i < joystickListeners.size(); i++)
-			joystickListeners.get(i).onJoystickDisconnect(jid);
-		joystickIsPresent[jid] = false;
-	}
-
 	/**
 	 * Fires a key event in this system. 
 	 * @param type the key type.
@@ -753,6 +566,27 @@ public class GLFWInputSystem
 		return joystickInputObjects[jid] == null ? false : joystickInputObjects[jid].fireJoystickHatEvent(index, type);
 	}
 	
+	// Connect joystick.
+	private void connectJoystick(int jid)
+	{
+		for (int i = 0; i < joystickListeners.size(); i++)
+			joystickListeners.get(i).onJoystickConnect(
+				jid, 
+				GLFW.glfwJoystickIsGamepad(jid), 
+				GLFW.glfwGetJoystickGUID(jid), 
+				GLFW.glfwGetJoystickName(jid)
+			);
+		joystickIsPresent[jid] = true;
+	}
+
+	// Disconnect joystick.
+	private void disconnectJoystick(int jid)
+	{
+		for (int i = 0; i < joystickListeners.size(); i++)
+			joystickListeners.get(i).onJoystickDisconnect(jid);
+		joystickIsPresent[jid] = false;
+	}
+
 	// Creates an empty list if list is null, else return parameter.
 	private static <T> List<T> makeIfNull(List<T> map)
 	{
@@ -993,6 +827,173 @@ public class GLFWInputSystem
 		
 	}
 	
+	/**
+	 * Joystick input object.
+	 */
+	private static class JoystickInputObject
+	{
+		/** Parameters for this object. */
+		private JoystickInputParameters parameters;
+		/** List of objects that handle joystick buttons. */
+		private List<InputObjectProfile> JoystickButtonHandlers;
+		/** List of objects that handle joystick axes. */
+		private List<InputObjectProfile> JoystickAxisHandlers;
+		/** List of objects that handle joystick hats. */
+		private List<InputObjectProfile> joystickHatHandlers;
+	
+		private double[] previousAxisValues;
+		private Boolean[] previousButtonValues;
+		private Integer[] previousHatValues;
+		
+		private JoystickInputObject(JoystickInputParameters parameters, Object instance)
+		{
+			this.parameters = parameters;
+			this.JoystickButtonHandlers = null;
+			this.JoystickAxisHandlers = null;
+			this.joystickHatHandlers = null;
+	
+			InputObjectProfile profile = new InputObjectProfile(instance);
+	
+			if (profile.handlesJoystickButtons())
+				(JoystickButtonHandlers = makeIfNull(JoystickButtonHandlers)).add(profile);
+			if (profile.handlesJoystickAxes())
+				(JoystickAxisHandlers = makeIfNull(JoystickAxisHandlers)).add(profile);
+			if (profile.handlesJoystickHats())
+				(joystickHatHandlers = makeIfNull(joystickHatHandlers)).add(profile);
+		}
+		
+		/**
+		 * Updates controller poll data and send out events for the changes.
+		 * @param axisData the axis data from GLFW.
+		 * @param buttonData the button data from GLFW.
+		 * @param hatData the hat data from GLFW.
+		 */
+		public void update(FloatBuffer axisData, ByteBuffer buttonData, ByteBuffer hatData)
+		{
+			if (needInit())
+				initPreviousValues(axisData.capacity(), buttonData.capacity(), hatData.capacity());
+			for (int i = 0; i < axisData.capacity(); i++)
+				updateAxis(i, axisData.get(i));
+			for (int i = 0; i < buttonData.capacity(); i++)
+				updateButton(i, buttonData.get(i) == GLFW.GLFW_PRESS);
+			for (int i = 0; i < hatData.capacity(); i++)
+				updateHat(i, 0x0ff & hatData.get(i));
+		}
+		
+		// return true if previous value arrays have not been initialized.
+		private boolean needInit()
+		{
+			return previousAxisValues == null || previousButtonValues == null || previousHatValues == null;
+		}
+		
+		// Initializes the axis/button/hat registers.
+		private void initPreviousValues(int axisCount, int buttonCount, int hatCount)
+		{
+			if (previousAxisValues == null)
+			{
+				previousAxisValues = new double[axisCount];
+				Arrays.fill(previousAxisValues, Double.NaN);
+			}
+			if (previousButtonValues == null)
+			{
+				previousButtonValues = new Boolean[buttonCount];
+				Arrays.fill(previousButtonValues, null);
+			}
+			if (previousHatValues == null)
+			{
+				previousHatValues = new Integer[hatCount];
+				Arrays.fill(previousHatValues, null);
+			}
+		}
+	
+		// Updates a single axis.
+		private void updateAxis(int index, double value)
+		{
+			if (previousAxisValues == null || index < 0 || index >= previousAxisValues.length)
+				return;
+	
+			JoystickAxisType axisType;
+			if ((axisType = parameters.getJoystickAxisType(index)) == null)
+				return;
+			
+			double deadzone = parameters.getAxisDeadzone(axisType);
+			if (Math.abs(value) < deadzone)
+				value = 0.0;
+			
+			if (previousAxisValues[index] != value && Math.abs(value - previousAxisValues[index]) > parameters.getAxisPrecisionEpsilon())
+				fireJoystickAxisEvent(axisType, value);
+			previousAxisValues[index] = value;
+		}
+		
+		// Updates a single button.
+		private void updateButton(int index, boolean value)
+		{
+			if (previousButtonValues == null || index < 0 || index >= previousButtonValues.length)
+				return;
+			
+			JoystickButtonType buttonType;
+			if ((buttonType = parameters.getJoystickButtonType(index)) == null)
+				return;
+	
+			if (previousButtonValues[index] == null || previousButtonValues[index] != value)
+				fireJoystickButtonEvent(buttonType, value);
+			previousButtonValues[index] = value;
+		}
+		
+		// Updates a single hat.
+		private void updateHat(int index, int value)
+		{
+			if (previousHatValues == null || index < 0 || index >= previousHatValues.length)
+				return;
+			if (previousHatValues[index] == null || previousHatValues[index] != value)
+				fireJoystickHatEvent(index, JoystickHatType.getById(value));
+			previousHatValues[index] = value;
+		}
+		
+		/**
+		 * Fires a gamepad button event in this system.
+		 * @param type the gamepad button type.
+		 * @param pressed true if pressed, false if released.
+		 * @return true if the event was handled by an object, false if not. 
+		 */
+		public boolean fireJoystickButtonEvent(JoystickButtonType type, boolean pressed)
+		{
+			boolean handled = false;
+			if (JoystickButtonHandlers != null) for (int i = 0; i < JoystickButtonHandlers.size(); i++)
+				handled |= JoystickButtonHandlers.get(i).fireJoystickButton(type, pressed);
+			return handled;
+		}
+		
+		/**
+		 * Fires a joystick axis event in this system. 
+		 * @param type the joystick axis type.
+		 * @param amount the amount moved.
+		 * @return true if the event was handled by an object, false if not. 
+		 */
+		public boolean fireJoystickAxisEvent(JoystickAxisType type, double amount)
+		{
+			boolean handled = false;
+			if (JoystickAxisHandlers != null) for (int i = 0; i < JoystickAxisHandlers.size(); i++)
+				handled |= JoystickAxisHandlers.get(i).fireJoystickAxis(type, amount);
+			return handled;
+		}
+		
+		/**
+		 * Fires a joystick hat event in this system. 
+		 * @param index the hat index on the device.
+		 * @param type the joystick hat type.
+		 * @return true if the event was handled by an object, false if not. 
+		 */
+		public boolean fireJoystickHatEvent(int index, JoystickHatType type)
+		{
+			boolean handled = false;
+			if (joystickHatHandlers != null) for (int i = 0; i < joystickHatHandlers.size(); i++)
+				handled |= joystickHatHandlers.get(i).fireJoystickHat(index, type);
+			return handled;
+		}
+		
+	}
+
 	/**
 	 * A single processed annotated input object to direct events to.
 	 * @author Matthew Tropiano

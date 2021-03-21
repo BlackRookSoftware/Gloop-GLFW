@@ -1,20 +1,20 @@
 package com.blackrook.gloop.glfw;
 
-import java.awt.Dimension;
-import java.awt.Point;
-import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.lwjgl.glfw.Callbacks;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWDropCallback;
 import org.lwjgl.glfw.GLFWImage;
+import org.lwjgl.glfw.GLFWVidMode;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 
@@ -40,6 +40,22 @@ public class GLFWWindow extends GLFWHandle
 	private List<InputListener> inputListeners;
 	/** List of file drop event listeners. */
 	private List<DropListener> dropListeners;
+
+	/**
+	 * Enum of window cursor modes.
+	 */
+	public enum CursorMode
+	{
+		/** Cursor acts normally.  */
+		NORMAL(GLFW.GLFW_CURSOR_NORMAL),
+		/** Cursor is hidden during window hover.  */
+		HIDDEN(GLFW.GLFW_CURSOR_HIDDEN),
+		/** Cursor is disabled; mouse movement is grabbed by the window and movement is unlimited.  */
+		DISABLED(GLFW.GLFW_CURSOR_DISABLED);
+		
+		final int glfwVal;
+		private CursorMode(int value) {this.glfwVal = value;}
+	}
 
 	/**
 	 * A window event listener interface. 
@@ -365,7 +381,7 @@ public class GLFWWindow extends GLFWHandle
 	/**
 	 * Windows hints for the next window created.
 	 */
-	public static class Hints
+	public static class WindowHints
 	{
 		public enum ClientAPI
 		{
@@ -420,313 +436,467 @@ public class GLFWWindow extends GLFWHandle
 		/** The Don't Care constant. */
 		public static final int DONT_CARE = -1;
 		
+		/** The hint map. */
+		private Map<Integer, Integer> hintMap;
+		
 		/**
-		 * Resets all hints to default:
-		 * 
+		 * Creates a new default set of hints.
 		 */
-		public static void reset()
+		public WindowHints()
 		{
-			GLFW.glfwDefaultWindowHints();
+			this.hintMap = new HashMap<>();
+			reset();
+		}
+
+		/**
+		 * Resets all hints to default.
+		 * <ul>
+		 * <li><code>setResizable(true)</code></li>
+		 * <li><code>setVisible(true)</code></li>
+		 * <li><code>setDecorated(true)</code></li>
+		 * <li><code>setFocused(true)</code></li>
+		 * <li><code>setAutoIconified(true)</code></li>
+		 * <li><code>setFloating(false)</code></li>
+		 * <li><code>setMaximized(false)</code></li>
+		 * <li><code>setCenteredCursor(true)</code></li>
+		 * <li><code>setTransparentFramebuffer(false)</code></li>
+		 * <li><code>setFocusOnShow(true)</code></li>
+		 * <li><code>setScaleToMonitor(false)</code></li>
+		 * <li><code>setRedBits(8)</code></li>
+		 * <li><code>setGreenBits(8)</code></li>
+		 * <li><code>setBlueBits(8)</code></li>
+		 * <li><code>setAlphaBits(8)</code></li>
+		 * <li><code>setDepthBits(24)</code></li>
+		 * <li><code>setStencilBits(8)</code></li>
+		 * <li><code>setAccumRedBits(0)</code></li>
+		 * <li><code>setAccumGreenBits(0)</code></li>
+		 * <li><code>setAccumBlueBits(0)</code></li>
+		 * <li><code>setAccumAlphaBits(0)</code></li>
+		 * <li><code>setAuxBuffers(0)</code></li>
+		 * <li><code>setSamples(0)</code></li>
+		 * <li><code>setRefreshRate(DONT_CARE)</code></li>
+		 * <li><code>setStereo(false)</code></li>
+		 * <li><code>setSRGBCapable(false)</code></li>
+		 * <li><code>setDoubleBuffered(true)</code></li>
+		 * <li><code>setClientAPI(ClientAPI.OPENGL_API)</code></li>
+		 * <li><code>setContextCreationAPI(ContextCreationAPI.NATIVE_CONTEXT_API)</code></li>
+		 * <li><code>setContextVersion(1, 0)</code></li>
+		 * <li><code>setContextRobustness(ContextRobustness.NO_ROBUSTNESS)</code></li>
+		 * <li><code>setContextReleaseBehavior(ContextReleaseBehavior.ANY_RELEASE_BEHAVIOR)</code></li>
+		 * <li><code>setContextNoError(false)</code></li>
+		 * <li><code>setOpenGLForwardCompatibility(false)</code></li>
+		 * <li><code>setOpenGLDebugContext(false)</code></li>
+		 * <li><code>setOpenGLProfile(OpenGLProfile.ANY_PROFILE)</code></li>
+		 * <li><code>setCocoaRetinaFrameBuffer(true)</code></li>
+		 * <li><code>setCocoaGraphicsSwitching(false)</code></li>
+		 * </ul>
+		 */
+		public void reset()
+		{
+			setResizable(true);
+			setVisible(true);
+			setDecorated(true);
+			setFocused(true);
+			setAutoIconified(true);
+			setFloating(false);
+			setMaximized(false);
+			setCenteredCursor(true);
+			setTransparentFramebuffer(false);
+			setFocusOnShow(true);
+			setScaleToMonitor(false);
+			setRedBits(8);
+			setGreenBits(8);
+			setBlueBits(8);
+			setAlphaBits(8);
+			setDepthBits(24);
+			setStencilBits(8);
+			setAccumRedBits(0);
+			setAccumGreenBits(0);
+			setAccumBlueBits(0);
+			setAccumAlphaBits(0);
+			setAuxBuffers(0);
+			setSamples(0);
+			setRefreshRate(DONT_CARE);
+			setStereo(false);
+			setSRGBCapable(false);
+			setDoubleBuffered(true);
+			setClientAPI(ClientAPI.OPENGL_API);
+			setContextCreationAPI(ContextCreationAPI.NATIVE_CONTEXT_API);
+			setContextVersion(1, 0);
+			setContextRobustness(ContextRobustness.NO_ROBUSTNESS);
+			setContextReleaseBehavior(ContextReleaseBehavior.ANY_RELEASE_BEHAVIOR);
+			setContextNoError(false);
+			setOpenGLForwardCompatibility(false);
+			setOpenGLDebugContext(false);
+			setOpenGLProfile(OpenGLProfile.ANY_PROFILE);
+			setCocoaRetinaFrameBuffer(true);
+			setCocoaGraphicsSwitching(false);
 		}
 
 		/**
 		 * Sets if the next created window is resizable (manually, not via methods).
 		 * @param value true if so, false if not.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setResizable(boolean value)
+		public WindowHints setResizable(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_RESIZABLE, glfwBoolean(value));
+			hintMap.put(GLFW.GLFW_RESIZABLE, glfwBoolean(value));
+			return this;
 		}
 
 		/**
 		 * Sets if the next created window is visible on creation.
 		 * @param value true if so, false if not.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setVisible(boolean value)
+		public WindowHints setVisible(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_VISIBLE, glfwBoolean(value));
+			hintMap.put(GLFW.GLFW_VISIBLE, glfwBoolean(value));
+			return this;
 		}
 		
 		/**
 		 * Sets if the next created window is decorated on creation.
 		 * @param value true if so, false if not.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setDecorated(boolean value)
+		public WindowHints setDecorated(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_DECORATED, glfwBoolean(value));
+			hintMap.put(GLFW.GLFW_DECORATED, glfwBoolean(value));
+			return this;
 		}
 		
 		/**
 		 * Sets if the next created window gains immediate focus on creation.
 		 * @param value true if so, false if not.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setFocused(boolean value)
+		public WindowHints setFocused(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_FOCUSED, glfwBoolean(value));
+			hintMap.put(GLFW.GLFW_FOCUSED, glfwBoolean(value));
+			return this;
 		}
 		
 		/**
 		 * Sets if the next created window starts iconified on creation.
 		 * @param value true if so, false if not.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setAutoIconified(boolean value)
+		public WindowHints setAutoIconified(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_AUTO_ICONIFY, glfwBoolean(value));
+			hintMap.put(GLFW.GLFW_AUTO_ICONIFY, glfwBoolean(value));
+			return this;
 		}
 		
 		/**
 		 * Sets if the next created window starts floating, or rather, "always on top".
 		 * @param value true if so, false if not.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setFloating(boolean value)
+		public WindowHints setFloating(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_FLOATING, glfwBoolean(value));
+			hintMap.put(GLFW.GLFW_FLOATING, glfwBoolean(value));
+			return this;
 		}
 		
 		/**
 		 * Sets if the next created window starts maximized on creation.
 		 * @param value true if so, false if not.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setMaximized(boolean value)
+		public WindowHints setMaximized(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_MAXIMIZED, glfwBoolean(value));
+			hintMap.put(GLFW.GLFW_MAXIMIZED, glfwBoolean(value));
+			return this;
 		}
 		
 		/**
 		 * Sets if the next created window starts with the mouse cursor centered over it (fullscreen only).
 		 * @param value true if so, false if not.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setCenteredCursor(boolean value)
+		public WindowHints setCenteredCursor(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_CENTER_CURSOR, glfwBoolean(value));
+			hintMap.put(GLFW.GLFW_CENTER_CURSOR, glfwBoolean(value));
+			return this;
 		}
 		
 		/**
-		 * Sets if the next created window can be transparent (not supported everywhere).
+		 * Sets if the next created window can have a transparent framebuffer (not supported everywhere).
 		 * @param value true if so, false if not.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setTransparent(boolean value)
+		public WindowHints setTransparentFramebuffer(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_TRANSPARENT_FRAMEBUFFER, glfwBoolean(value));
+			hintMap.put(GLFW.GLFW_TRANSPARENT_FRAMEBUFFER, glfwBoolean(value));
+			return this;
 		}
 		
 		/**
 		 * Sets if the next created window requests focus when shown.
 		 * @param value true if so, false if not.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setFocusOnShow(boolean value)
+		public WindowHints setFocusOnShow(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_FOCUS_ON_SHOW, glfwBoolean(value));
+			hintMap.put(GLFW.GLFW_FOCUS_ON_SHOW, glfwBoolean(value));
+			return this;
 		}
 		
 		/**
 		 * Sets if the next created window resizes proportionally to each monitor it touches.
 		 * @param value true if so, false if not.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setScaleToMonitor(boolean value)
+		public WindowHints setScaleToMonitor(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_SCALE_TO_MONITOR, glfwBoolean(value));
+			hintMap.put(GLFW.GLFW_SCALE_TO_MONITOR, glfwBoolean(value));
+			return this;
 		}
 		
 		/**
 		 * Sets the next created window's framebuffer's red color bits.
 		 * @param value 0 to {@link Integer#MAX_VALUE}, or {@link #DONT_CARE}.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setRedBits(int value)
+		public WindowHints setRedBits(int value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_RED_BITS, value);
+			hintMap.put(GLFW.GLFW_RED_BITS, value);
+			return this;
 		}
 		
 		/**
 		 * Sets the next created window's framebuffer's green color bits.
 		 * @param value 0 to {@link Integer#MAX_VALUE}, or {@link #DONT_CARE}.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setGreenBits(int value)
+		public WindowHints setGreenBits(int value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_GREEN_BITS, value);
+			hintMap.put(GLFW.GLFW_GREEN_BITS, value);
+			return this;
 		}
 		
 		/**
 		 * Sets the next created window's framebuffer's blue color bits.
 		 * @param value 0 to {@link Integer#MAX_VALUE}, or {@link #DONT_CARE}.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setBlueBits(int value)
+		public WindowHints setBlueBits(int value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_BLUE_BITS, value);
+			hintMap.put(GLFW.GLFW_BLUE_BITS, value);
+			return this;
 		}
 		
 		/**
 		 * Sets the next created window's framebuffer's alpha bits.
 		 * @param value 0 to {@link Integer#MAX_VALUE}, or {@link #DONT_CARE}.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setAlphaBits(int value)
+		public WindowHints setAlphaBits(int value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_ALPHA_BITS, value);
+			hintMap.put(GLFW.GLFW_ALPHA_BITS, value);
+			return this;
 		}
 		
 		/**
 		 * Sets the next created window's depth buffer bits.
 		 * @param value 0 to {@link Integer#MAX_VALUE}, or {@link #DONT_CARE}.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setDepthBits(int value)
+		public WindowHints setDepthBits(int value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_DEPTH_BITS, value);
+			hintMap.put(GLFW.GLFW_DEPTH_BITS, value);
+			return this;
 		}
 		
 		/**
 		 * Sets the next created window's stencil buffer bits.
 		 * @param value 0 to {@link Integer#MAX_VALUE}, or {@link #DONT_CARE}.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setStencilBits(int value)
+		public WindowHints setStencilBits(int value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_STENCIL_BITS, value);
+			hintMap.put(GLFW.GLFW_STENCIL_BITS, value);
+			return this;
 		}
 		
 		/**
 		 * Sets the next created window's accumulation framebuffer's red color bits.
 		 * @param value 0 to {@link Integer#MAX_VALUE}, or {@link #DONT_CARE}.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setAccumRedBits(int value)
+		public WindowHints setAccumRedBits(int value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_ACCUM_RED_BITS, value);
+			hintMap.put(GLFW.GLFW_ACCUM_RED_BITS, value);
+			return this;
 		}
 		
 		/**
 		 * Sets the next created window's accumulation framebuffer's green color bits.
 		 * @param value 0 to {@link Integer#MAX_VALUE}, or {@link #DONT_CARE}.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setAccumGreenBits(int value)
+		public WindowHints setAccumGreenBits(int value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_ACCUM_GREEN_BITS, value);
+			hintMap.put(GLFW.GLFW_ACCUM_GREEN_BITS, value);
+			return this;
 		}
 		
 		/**
 		 * Sets the next created window's accumulation framebuffer's blue color bits.
 		 * @param value 0 to {@link Integer#MAX_VALUE}, or {@link #DONT_CARE}.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setAccumBlueBits(int value)
+		public WindowHints setAccumBlueBits(int value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_ACCUM_BLUE_BITS, value);
+			hintMap.put(GLFW.GLFW_ACCUM_BLUE_BITS, value);
+			return this;
 		}
 		
 		/**
 		 * Sets the next created window's accumulation framebuffer's alpha bits.
 		 * @param value 0 to {@link Integer#MAX_VALUE}, or {@link #DONT_CARE}.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setAccumAlphaBits(int value)
+		public WindowHints setAccumAlphaBits(int value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_ACCUM_ALPHA_BITS, value);
+			hintMap.put(GLFW.GLFW_ACCUM_ALPHA_BITS, value);
+			return this;
 		}
 		
 		/**
 		 * Sets the next created window's auxiliary buffers.
 		 * @param value 0 to {@link Integer#MAX_VALUE}.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setAuxBuffers(int value)
+		public WindowHints setAuxBuffers(int value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_AUX_BUFFERS, value);
+			hintMap.put(GLFW.GLFW_AUX_BUFFERS, value);
+			return this;
 		}
 		
 		/**
 		 * Sets the next created window's multisample samples.
 		 * @param value 0 to {@link Integer#MAX_VALUE}.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setSamples(int value)
+		public WindowHints setSamples(int value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_SAMPLES, value);
+			hintMap.put(GLFW.GLFW_SAMPLES, value);
+			return this;
 		}
 		
 		/**
 		 * Sets the next created window's refresh rate.
 		 * @param value 0 to {@link Integer#MAX_VALUE}, or {@link #DONT_CARE}.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setRefreshRate(int value)
+		public WindowHints setRefreshRate(int value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_REFRESH_RATE, value);
+			hintMap.put(GLFW.GLFW_REFRESH_RATE, value);
+			return this;
 		}
 		
 		/**
 		 * Sets if the next created window is in stereo mode.
 		 * @param value true if so, false if not.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setRefreshRate(boolean value)
+		public WindowHints setStereo(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_STEREO, glfwBoolean(value));
+			hintMap.put(GLFW.GLFW_STEREO, glfwBoolean(value));
+			return this;
 		}
 
 		/**
 		 * Sets if the next created window is SRGB Capable.
 		 * @param value true if so, false if not.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setSRGBCapable(boolean value)
+		public WindowHints setSRGBCapable(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_SRGB_CAPABLE, glfwBoolean(value));
+			hintMap.put(GLFW.GLFW_SRGB_CAPABLE, glfwBoolean(value));
+			return this;
 		}
 
 		/**
 		 * Sets if the next created window is double-buffered.
 		 * @param value true if so, false if not.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setDoubleBuffered(boolean value)
+		public WindowHints setDoubleBuffered(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_DOUBLEBUFFER, glfwBoolean(value));
+			hintMap.put(GLFW.GLFW_DOUBLEBUFFER, glfwBoolean(value));
+			return this;
 		}
 
 		/**
 		 * Sets which client API to create the context for. Hard constraint. 
 		 * @param clientAPI the API type.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setClientAPI(ClientAPI clientAPI)
+		public WindowHints setClientAPI(ClientAPI clientAPI)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_CLIENT_API, clientAPI.glfwVal);
+			hintMap.put(GLFW.GLFW_CLIENT_API, clientAPI.glfwVal);
+			return this;
 		}
 		
 		/**
 		 * Sets which context creation API to use to create the context. Hard constraint.
 		 * Only used if the client API is set.
 		 * @param contextCreationAPI the context creation type.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setContextCreationAPI(ContextCreationAPI contextCreationAPI)
+		public WindowHints setContextCreationAPI(ContextCreationAPI contextCreationAPI)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_CREATION_API, contextCreationAPI.glfwVal);
+			hintMap.put(GLFW.GLFW_CONTEXT_CREATION_API, contextCreationAPI.glfwVal);
+			return this;
 		}
 		
 		/**
 		 * Sets the OpenGL version.
 		 * @param major the major version number.
 		 * @param minor the minor version number.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setContextVersion(int major, int minor)
+		public WindowHints setContextVersion(int major, int minor)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_VERSION_MAJOR, major);
-			GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_VERSION_MINOR, minor);
+			hintMap.put(GLFW.GLFW_CONTEXT_VERSION_MAJOR, major);
+			hintMap.put(GLFW.GLFW_CONTEXT_VERSION_MINOR, minor);
+			return this;
 		}
 		
 		/**
 		 * Sets the robustness strategy to be used by the context.
 		 * @param contextRobustness the robustness strategy.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setContextRobustness(ContextRobustness contextRobustness)
+		public WindowHints setContextRobustness(ContextRobustness contextRobustness)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_ROBUSTNESS, contextRobustness.glfwVal);
+			hintMap.put(GLFW.GLFW_CONTEXT_ROBUSTNESS, contextRobustness.glfwVal);
+			return this;
 		}
 		
 		/**
 		 * Sets the release behavior to be used by the context.
 		 * @param contextReleaseBehavior the release behavior.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setContextReleaseBehavior(ContextReleaseBehavior contextReleaseBehavior)
+		public WindowHints setContextReleaseBehavior(ContextReleaseBehavior contextReleaseBehavior)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_RELEASE_BEHAVIOR, contextReleaseBehavior.glfwVal);
+			hintMap.put(GLFW.GLFW_CONTEXT_RELEASE_BEHAVIOR, contextReleaseBehavior.glfwVal);
+			return this;
 		}
 		
 		/**
 		 * Sets whether errors should be generated by the context.
 		 * @param value true if so, false if not.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setContextNoError(boolean value)
+		public WindowHints setContextNoError(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_NO_ERROR, glfwBoolean(value));
+			hintMap.put(GLFW.GLFW_CONTEXT_NO_ERROR, glfwBoolean(value));
+			return this;
 		}
 
 		/**
@@ -735,10 +905,12 @@ public class GLFWWindow extends GLFWHandle
 		 * This must only be used if the requested OpenGL version is 3.0 or above. 
 		 * If OpenGL ES is requested, this hint is ignored. 
 		 * @param value true if so, false if not.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setOpenGLForwardCompatibility(boolean value)
+		public WindowHints setOpenGLForwardCompatibility(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_FORWARD_COMPAT, glfwBoolean(value));
+			hintMap.put(GLFW.GLFW_OPENGL_FORWARD_COMPAT, glfwBoolean(value));
+			return this;
 		}
 
 		/**
@@ -746,10 +918,12 @@ public class GLFWWindow extends GLFWHandle
 		 * which may have additional error and performance issue reporting functionality. 
 		 * If OpenGL ES is requested, this hint is ignored. 
 		 * @param value true if so, false if not.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setOpenGLDebugContext(boolean value)
+		public WindowHints setOpenGLDebugContext(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_DEBUG_CONTEXT, glfwBoolean(value));
+			hintMap.put(GLFW.GLFW_OPENGL_DEBUG_CONTEXT, glfwBoolean(value));
+			return this;
 		}
 
 		/**
@@ -757,20 +931,24 @@ public class GLFWWindow extends GLFWHandle
  		 * If requesting an OpenGL version below 3.2, {@link OpenGLProfile#ANY_PROFILE} must be used. 
  		 * If OpenGL ES is requested, this hint is ignored. 
  		 * @param openGLProfile the profile to create.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setOpenGLProfile(OpenGLProfile openGLProfile)
+		public WindowHints setOpenGLProfile(OpenGLProfile openGLProfile)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_PROFILE, openGLProfile.glfwVal);
+			hintMap.put(GLFW.GLFW_OPENGL_PROFILE, openGLProfile.glfwVal);
+			return this;
 		}
 
 		/**
 		 * Sets whether to use full resolution framebuffers on Retina displays. 
 		 * This is ignored on non-macOS platforms.
 		 * @param value true if so, false if not.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setCocoaRetinaFrameBuffer(boolean value)
+		public WindowHints setCocoaRetinaFrameBuffer(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_COCOA_RETINA_FRAMEBUFFER, glfwBoolean(value));
+			hintMap.put(GLFW.GLFW_COCOA_RETINA_FRAMEBUFFER, glfwBoolean(value));
+			return this;
 		}
 
 		/**
@@ -781,12 +959,82 @@ public class GLFWWindow extends GLFWHandle
 		 * integrated and discrete GPUs.
 		 * This is ignored on non-macOS platforms.
 		 * @param value true if so, false if not.
+		 * @return itself, for chaining calls.
 		 */
-		public static void setCocoaGraphicsSwitching(boolean value)
+		public WindowHints setCocoaGraphicsSwitching(boolean value)
 		{
-			GLFW.glfwWindowHint(GLFW.GLFW_COCOA_GRAPHICS_SWITCHING, glfwBoolean(value));
+			hintMap.put(GLFW.GLFW_COCOA_GRAPHICS_SWITCHING, glfwBoolean(value));
+			return this;
+		}
+		
+		// Sets the window hints using this hint set.
+		void setHints()
+		{
+			GLFWContext.init();
+			for (Map.Entry<Integer, Integer> entry : hintMap.entrySet())
+				GLFW.glfwWindowHint(entry.getKey(), entry.getValue());
+		}
+		
+	}
+
+	/** 
+	 * A single point. 
+	 */
+	public static class Point
+	{
+		public int x;
+		public int y;
+		
+		private Point(int x, int y)
+		{
+			this.x = x;
+			this.y = y;
+		}
+	}
+	
+	/** 
+	 * A dimension. 
+	 */
+	public static class Dimension
+	{
+		public int width;
+		public int height;
+		
+		private Dimension(int width, int height)
+		{
+			this.width = width;
+			this.height = height;
+		}
+	}
+	
+	/** 
+	 * A rectangle bound. 
+	 */
+	public static class Rectangle
+	{
+		public int left;
+		public int top;
+		public int right;
+		public int bottom;
+		
+		private Rectangle(int left, int top, int right, int bottom)
+		{
+			super();
+			this.left = left;
+			this.top = top;
+			this.right = right;
+			this.bottom = bottom;
 		}
 
+		public int getWidth()
+		{
+			return right - left;
+		}
+
+		public int getHeight()
+		{
+			return bottom - top;
+		}
 	}
 	
 	// Set up structures.
@@ -946,17 +1194,18 @@ public class GLFWWindow extends GLFWHandle
 	/**
 	 * Creates a new GLFW window.
 	 * <p><b>This must only be called from the main thread.</b>
+	 * @param hints the hints to use for the window.
 	 * @param title the window title.
 	 * @param width the window's initial width.
 	 * @param height the window's initial height.
 	 * @throws GLFWException if the window could not be created.
-	 * @see Hints
+	 * @see WindowHints
 	 * @See {@link GLFW#glfwCreateWindow(int, int, CharSequence, long, long)}
 	 */
-	public GLFWWindow(String title, int width, int height) 
+	public GLFWWindow(WindowHints hints, String title, int width, int height) 
 	{
 		this();
-		GLFWContext.init(); // init GLFW if not already (only happens once).
+		hints.setHints();
 		this.handle = GLFW.glfwCreateWindow(width, height, title, MemoryUtil.NULL, MemoryUtil.NULL);
 		if (this.handle == MemoryUtil.NULL)
 			throw new GLFWException("Window could not be created!");
@@ -967,18 +1216,19 @@ public class GLFWWindow extends GLFWHandle
 	/**
 	 * Creates a new GLFW window.
 	 * <p><b>This must only be called from the main thread.</b>
+	 * @param hints the hints to use for the window.
 	 * @param sharedWindow the window to share OpenGL resources with.
 	 * @param title the window title.
 	 * @param width the window's initial width.
 	 * @param height the window's initial height.
 	 * @throws GLFWException if the window could not be created.
-	 * @see Hints
+	 * @see WindowHints
 	 * @See {@link GLFW#glfwCreateWindow(int, int, CharSequence, long, long)}
 	 */
-	public GLFWWindow(GLFWWindow sharedWindow, String title, int width, int height) 
+	public GLFWWindow(WindowHints hints, GLFWWindow sharedWindow, String title, int width, int height) 
 	{
 		this();
-		GLFWContext.init(); // init GLFW if not already (only happens once).
+		hints.setHints();
 		this.handle = GLFW.glfwCreateWindow(width, height, title, MemoryUtil.NULL, sharedWindow.getHandle());
 		if (this.handle == MemoryUtil.NULL)
 			throw new GLFWException("Window could not be created!");
@@ -989,18 +1239,19 @@ public class GLFWWindow extends GLFWHandle
 	/**
 	 * Creates a new GLFW window.
 	 * <p><b>This must only be called from the main thread.</b>
+	 * @param hints the hints to use for the window.
 	 * @param monitor the monitor to use for fullscreen mode.
 	 * @param title the window title.
 	 * @param width the window's initial width.
 	 * @param height the window's initial height.
 	 * @throws GLFWException if the window could not be created.
-	 * @see Hints
+	 * @see WindowHints
 	 * @See {@link GLFW#glfwCreateWindow(int, int, CharSequence, long, long)}
 	 */
-	public GLFWWindow(GLFWMonitor monitor, String title, int width, int height) 
+	public GLFWWindow(WindowHints hints, GLFWMonitor monitor, String title, int width, int height) 
 	{
 		this();
-		GLFWContext.init(); // init GLFW if not already (only happens once).
+		hints.setHints();
 		this.handle = GLFW.glfwCreateWindow(width, height, title, monitor.getHandle(), MemoryUtil.NULL);
 		if (this.handle == MemoryUtil.NULL)
 			throw new GLFWException("Window could not be created!");
@@ -1011,19 +1262,20 @@ public class GLFWWindow extends GLFWHandle
 	/**
 	 * Creates a new GLFW window.
 	 * <p><b>This must only be called from the main thread.</b>
+	 * @param hints the hints to use for the window.
 	 * @param monitor the monitor to use for fullscreen mode.
 	 * @param sharedWindow the window to share OpenGL resources with.
 	 * @param title the window title.
 	 * @param width the window's initial width.
 	 * @param height the window's initial height.
 	 * @throws GLFWException if the window could not be created.
-	 * @see Hints
+	 * @see WindowHints
 	 * @See {@link GLFW#glfwCreateWindow(int, int, CharSequence, long, long)}
 	 */
-	public GLFWWindow(GLFWMonitor monitor, GLFWWindow sharedWindow, String title, int width, int height) 
+	public GLFWWindow(WindowHints hints, GLFWMonitor monitor, GLFWWindow sharedWindow, String title, int width, int height) 
 	{
 		this();
-		GLFWContext.init(); // init GLFW if not already (only happens once).
+		hints.setHints();
 		this.handle = GLFW.glfwCreateWindow(width, height, title, monitor.getHandle(), sharedWindow.getHandle());
 		if (this.handle == MemoryUtil.NULL)
 			throw new GLFWException("Window could not be created!");
@@ -1143,7 +1395,7 @@ public class GLFWWindow extends GLFWHandle
 	 * @param ypos the desired y-coordinate of the upper-left corner of the content area.
 	 * @param width the desired width in screen coordinates of the content area or video mode.
 	 * @param height the desired height in screen coordinates of the content area or video mode.
-	 * @param refreshRate the desired refresh rate in Hz of the video mode, or {@link Hints#DONT_CARE}
+	 * @param refreshRate the desired refresh rate in Hz of the video mode, or {@link WindowHints#DONT_CARE}
 	 */
 	public void setMonitor(GLFWMonitor monitor, int xpos, int ypos, int width, int height, int refreshRate)
 	{
@@ -1207,6 +1459,88 @@ public class GLFWWindow extends GLFWHandle
 		}
 	}
 	
+	/**
+	 * Sets this window's cursor.
+	 * @param cursor the cursor. 
+	 * <p><b>This must only be called from the main thread.</b>
+	 */
+	public void setCursor(GLFWCursor cursor)
+	{
+		GLFW.glfwSetCursor(handle, cursor != null ? cursor.getHandle() : MemoryUtil.NULL);
+	}
+	
+	/**
+	 * Sets this window's cursor mode.
+	 * @param cursorMode the cursor mode. 
+	 * <p><b>This must only be called from the main thread.</b>
+	 */
+	public void setCursorMode(CursorMode cursorMode)
+	{
+		GLFW.glfwSetInputMode(handle, GLFW.GLFW_CURSOR, cursorMode.glfwVal);
+	}
+	
+	/**
+	 * Sets if the mouse motion on this window is raw, no acceleration applied.
+	 * Only works if the cursor mode is {@link CursorMode#DISABLED}.
+	 * <p><b>This must only be called from the main thread.</b>
+	 * @param enabled true to enable, false to disable.
+	 */
+	public void setRawMouseMotion(boolean enabled)
+	{
+		if (GLFW.glfwRawMouseMotionSupported())
+			GLFW.glfwSetInputMode(handle, GLFW.GLFW_RAW_MOUSE_MOTION, glfwBoolean(enabled));
+	}
+	
+	/**
+	 * Sets if sticky keys is enabled.
+	 * <p><b>This must only be called from the main thread.</b>
+	 * @param enabled true to enable, false to disable.
+	 */
+	public void setStickyKeys(boolean enabled)
+	{
+		GLFW.glfwSetInputMode(handle, GLFW.GLFW_STICKY_KEYS, glfwBoolean(enabled));
+	}
+	
+	/**
+	 * Sets if sticky mouse buttons is enabled.
+	 * <p><b>This must only be called from the main thread.</b>
+	 * @param enabled true to enable, false to disable.
+	 */
+	public void setStickyMouseButtons(boolean enabled)
+	{
+		GLFW.glfwSetInputMode(handle, GLFW.GLFW_STICKY_MOUSE_BUTTONS, glfwBoolean(enabled));
+	}
+	
+	/**
+	 * Sets if the lock keys pass their modifier bits to the input system.
+	 * <p><b>This must only be called from the main thread.</b>
+	 * @param enabled true to enable, false to disable.
+	 */
+	public void setLockKeyMods(boolean enabled)
+	{
+		GLFW.glfwSetInputMode(handle, GLFW.GLFW_LOCK_KEY_MODS, glfwBoolean(enabled));
+	}
+	
+	/**
+	 * Sets this window's position (upper-left coordinate) to center of the screen using its current size and a monitor.
+	 * <p><b>This must only be called from the main thread.</b>
+	 * @param monitor the monitor to center on.
+	 * @see #getSize()
+	 * @see #setPosition(int, int)
+	 */
+	public void center(GLFWMonitor monitor)
+	{
+		// Get the resolution of the primary monitor
+		GLFWVidMode vidmode = monitor.getVideoMode();
+		
+		// Center window.
+		Dimension dimension = getSize();
+		setPosition(
+			(vidmode.width() - dimension.width) / 2,
+			(vidmode.height() - dimension.height) / 2
+		);
+	}
+
 	/**
 	 * Iconifies the window.
 	 * Fires an event to listeners, but only when GLFW's Poll Events function is called. 
@@ -1348,10 +1682,10 @@ public class GLFWWindow extends GLFWHandle
 	
 	/**
 	 * Sets the size limits of the content area of the specified window.
-	 * @param minwidth the minimum width in screen coordinates of the content area, or {@link Hints#DONT_CARE}
-	 * @param minheight the minimum height in screen coordinates of the content area, or {@link Hints#DONT_CARE}
-	 * @param maxwidth the maximum width in screen coordinates of the content area, or {@link Hints#DONT_CARE}
-	 * @param maxheight the maximum height in screen coordinates of the content area, or {@link Hints#DONT_CARE}
+	 * @param minwidth the minimum width in screen coordinates of the content area, or {@link WindowHints#DONT_CARE}
+	 * @param minheight the minimum height in screen coordinates of the content area, or {@link WindowHints#DONT_CARE}
+	 * @param maxwidth the maximum width in screen coordinates of the content area, or {@link WindowHints#DONT_CARE}
+	 * @param maxheight the maximum height in screen coordinates of the content area, or {@link WindowHints#DONT_CARE}
 	 */
 	public void setSizeLimits(int minwidth, int minheight, int maxwidth, int maxheight)
 	{
@@ -1382,8 +1716,8 @@ public class GLFWWindow extends GLFWHandle
 	/**
 	 * Sets this window's aspect ratio limits.
 	 * <p><b>This must only be called from the main thread.</b>
-     * @param numer the numerator of the desired aspect ratio, or {@link Hints#DONT_CARE}
-     * @param denom the denominator of the desired aspect ratio, or {@link Hints#DONT_CARE}
+     * @param numer the numerator of the desired aspect ratio, or {@link WindowHints#DONT_CARE}
+     * @param denom the denominator of the desired aspect ratio, or {@link WindowHints#DONT_CARE}
 	 */
 	public void setAspectRatio(int numer, int denom) 
 	{
@@ -1470,7 +1804,7 @@ public class GLFWWindow extends GLFWHandle
 			IntBuffer right = stack.mallocInt(1);
 			IntBuffer bottom = stack.mallocInt(1);
 			GLFW.glfwGetWindowFrameSize(handle, left, top, right, bottom);
-			return new Rectangle(left.get(0), top.get(0), right.get(0) - left.get(0), bottom.get(0) - top.get(0));
+			return new Rectangle(left.get(0), top.get(0), right.get(0), bottom.get(0));
 		}
 	}
 	
@@ -1503,8 +1837,6 @@ public class GLFWWindow extends GLFWHandle
 	{
 		GLFW.glfwSwapBuffers(handle);
 	}
-	
-	// TODO: Add listener methods.
 	
 	// Convert Java boolean to GLFW boolean.
 	private static int glfwBoolean(boolean value)

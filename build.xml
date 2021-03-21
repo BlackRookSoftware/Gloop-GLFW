@@ -27,8 +27,14 @@
 	<property name="project.testclass" value=""/>
 	<property name="project.testclass.main" value=""/>
 	<property name="project.javadoc.packages" value="
-		"
-	/>
+		com.blackrook.gloop.glfw,
+		com.blackrook.gloop.glfw.exception,
+		com.blackrook.gloop.glfw.input,
+		com.blackrook.gloop.glfw.input.annotation,
+		com.blackrook.gloop.glfw.input.enums,
+		com.blackrook.gloop.glfw.input.exception,
+		com.blackrook.gloop.glfw.struct
+	"/>
 	
 	<import file="build-dependencies.xml" />
 	<import file="build-import.xml" />

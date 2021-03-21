@@ -14,6 +14,7 @@ public class GLFWCursor extends GLFWHandle
 	private boolean allocated;
 
 	/**
+	 * <b>This must only be called from the main thread.</b>
 	 * @return the arrow cursor.
 	 */
 	public static GLFWCursor createArrowCursor()
@@ -22,6 +23,7 @@ public class GLFWCursor extends GLFWHandle
 	}
 	
 	/**
+	 * <b>This must only be called from the main thread.</b>
 	 * @return the I-Beam (text carat) cursor.
 	 */
 	public static GLFWCursor createIBeamCursor()
@@ -30,6 +32,7 @@ public class GLFWCursor extends GLFWHandle
 	}
 	
 	/**
+	 * <b>This must only be called from the main thread.</b>
 	 * @return the crosshair cursor.
 	 */
 	public static GLFWCursor createCrosshairCursor()
@@ -38,6 +41,7 @@ public class GLFWCursor extends GLFWHandle
 	}
 	
 	/**
+	 * <b>This must only be called from the main thread.</b>
 	 * @return the hand cursor.
 	 */
 	public static GLFWCursor createHandCursor()
@@ -46,6 +50,7 @@ public class GLFWCursor extends GLFWHandle
 	}
 	
 	/**
+	 * <b>This must only be called from the main thread.</b>
 	 * @return the horizontal resize cursor.
 	 */
 	public static GLFWCursor createHorizontalResizeCursor()
@@ -54,6 +59,7 @@ public class GLFWCursor extends GLFWHandle
 	}
 	
 	/**
+	 * <b>This must only be called from the main thread.</b>
 	 * @return the vertical resize cursor.
 	 */
 	public static GLFWCursor createVerticalResizeCursor()

@@ -14,7 +14,6 @@ import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.system.MemoryUtil;
 
 import com.blackrook.gloop.glfw.exception.GLFWException;
-import com.blackrook.gloop.glfw.input.GLFWInputSystem;
 
 /**
  * GLFW context state.
@@ -31,6 +30,7 @@ public final class GLFWContext
 	private static Object RUNNABLE_MUTEX;
 	private static List<Runnable> RUNNABLE_ALWAYS;
 	private static Deque<Runnable> RUNNABLE_ONCE;
+	private static List<Runnable> RUNNABLE_ALWAYS_AFTER_POLL;
 	private static Deque<Runnable> RUNNABLE_ON_END;
 
 	/**
@@ -38,7 +38,7 @@ public final class GLFWContext
 	 * If already initialized, this does nothing.
 	 * <p><b>This must only be called from the main thread.</b>
 	 */
-	public static void init()
+	static void init()
 	{
 		if (initialized)
 			return;
@@ -50,6 +50,7 @@ public final class GLFWContext
 		WINDOW_TO_CONTEXT_THREAD = new HashMap<>(4);
 		CONTEXT_THREAD_TO_WINDOW = new HashMap<>(4);
 		RUNNABLE_ALWAYS = new ArrayList<>(4);
+		RUNNABLE_ALWAYS_AFTER_POLL = new ArrayList<>(4);
 		RUNNABLE_ONCE = new LinkedList<>();
 		RUNNABLE_ON_END = new LinkedList<>();
 		RUNNABLE_MUTEX = new Object();
@@ -69,6 +70,7 @@ public final class GLFWContext
 		WINDOW_TO_CONTEXT_THREAD = null;
 		CONTEXT_THREAD_TO_WINDOW = null;
 		RUNNABLE_ALWAYS = null;
+		RUNNABLE_ALWAYS_AFTER_POLL = null;
 		RUNNABLE_ONCE = null;
 		RUNNABLE_ON_END = null;
 		RUNNABLE_MUTEX = null;
@@ -110,6 +112,7 @@ public final class GLFWContext
 	 */
 	public static void makeWindowContextCurrent(GLFWWindow window)
 	{
+		init();
 		Thread currentThread = Thread.currentThread();
 		if (window != null)
 		{
@@ -140,15 +143,17 @@ public final class GLFWContext
 	/**
 	 * Sets how many vertical blanks need to occur before a window buffer swap.
 	 * In layman's terms, this either sets VSync on (1) or off (0).
-	 * This is set for all windows/framebuffers.
+	 * <p>This cannot be called until {@link #makeWindowContextCurrent(GLFWWindow)} is called in this thread.
 	 * <p>This can be called from any thread.
 	 * @param blanks the amount of vertical blanks to wait.
 	 * @throws IllegalArgumentException if blanks is less than 0.
+	 * @see GLFWContext#makeWindowContextCurrent(GLFWWindow)
 	 */
 	public static void setSwapInterval(int blanks)
 	{
 		if (blanks < 0)
 			throw new IllegalArgumentException("blanks cannot be less than 0");
+		init();
 		GLFW.glfwSwapInterval(blanks);
 	}
 
@@ -162,6 +167,7 @@ public final class GLFWContext
 	 */
 	public static void pollEvents()
 	{
+		init();
 		GLFW.glfwPollEvents();
 	}
 
@@ -170,8 +176,9 @@ public final class GLFWContext
 	 * in {@link #mainLoop(GLFWWindow, GLFWInputSystem)} such that they execute on the main thread.
 	 * Runnables are executed in the order that they are added this way. 
 	 * @param runnable the runnable to add.
+	 * @see #mainLoop(GLFWWindow, GLFWInputSystem)
 	 */
-	public static void addAlwaysRunnable(Runnable runnable)
+	public static void addRunnableAlways(Runnable runnable)
 	{
 		synchronized (RUNNABLE_MUTEX)
 		{
@@ -180,11 +187,11 @@ public final class GLFWContext
 	}
 
 	/**
-	 * Removes a Runnable that is invoked at the beginning of the loop that
-	 * was added by {@link #addAlwaysRunnable(Runnable)}.
+	 * Removes a Runnable that was added by {@link #addRunnableAlways(Runnable)}.
 	 * @param runnable the runnable to remove.
+	 * @see #mainLoop(GLFWWindow, GLFWInputSystem)
 	 */
-	public static void removeAlwaysRunnable(Runnable runnable)
+	public static void removeRunnableAlways(Runnable runnable)
 	{
 		synchronized (RUNNABLE_MUTEX)
 		{
@@ -193,11 +200,44 @@ public final class GLFWContext
 	}
 
 	/**
+	 * Adds a Runnable that is invoked at the end of the loop after events are polled
+	 * in {@link #mainLoop(GLFWWindow, GLFWInputSystem)} such that they execute on the main thread, 
+	 * after event/input polling.
+	 * <p>Runnables are executed in the order that they are added this way, after event/input polling.
+	 * <p>This can be called from any thread.
+	 * @param runnable the runnable to add.
+	 * @see #mainLoop(GLFWWindow, GLFWInputSystem)
+	 */
+	public static void addRunnableAlwaysAfterPoll(Runnable runnable)
+	{
+		synchronized (RUNNABLE_MUTEX)
+		{
+			RUNNABLE_ALWAYS_AFTER_POLL.add(runnable);
+		}
+	}
+
+	/**
+	 * Removes a Runnable that was added by {@link #addRunnableAlwaysAfterPoll(Runnable)}.
+	 * @param runnable the runnable to remove.
+	 * @see #mainLoop(GLFWWindow, GLFWInputSystem)
+	 */
+	public static void removeRunnableAlwaysAfterPoll(Runnable runnable)
+	{
+		synchronized (RUNNABLE_MUTEX)
+		{
+			RUNNABLE_ALWAYS_AFTER_POLL.remove(runnable);
+		}
+	}
+
+	/**
 	 * Adds a Runnable that is invoked only once at the beginning of the loop
 	 * in {@link #mainLoop(GLFWWindow, GLFWInputSystem)} such that it executes on the main thread,
 	 * but before the "always runnables" are invoked.
 	 * Runnables are executed in the order that they are added this way.
+	 * <p> HINT: You can invoke most things that require being on the "main thread" using this,
+	 * provided that the loop is active! 
 	 * @param runnable the runnable to add.
+	 * @see #mainLoop(GLFWWindow, GLFWInputSystem)
 	 */
 	public static void addRunnableOnce(Runnable runnable)
 	{
@@ -213,6 +253,7 @@ public final class GLFWContext
 	 * but only once the loop is escaped due to a closing window.
 	 * Runnables are executed in the order that they are added this way.
 	 * @param runnable the runnable to add.
+	 * @see #mainLoop(GLFWWindow, GLFWInputSystem)
 	 */
 	public static void addRunnableOnLoopEnd(Runnable runnable)
 	{
@@ -226,6 +267,7 @@ public final class GLFWContext
 	 * Enters a loop that sets the window and input system, and polls for events and input 
 	 * until the window is closed.
 	 * When the window closes, the window is destroyed and GLFW is terminated.
+	 * <p>It is strongly advised that you use this method for starting the main loop
 	 * <p><b>This must only be called from the main thread to ensure that everything works properly!</b>
 	 * @param window the provided window handle.
 	 * @param inputSystem the input system to poll (for joystick input - mouse/keyboard is handled by the window).
@@ -249,16 +291,20 @@ public final class GLFWContext
 				runAll(RUNNABLE_ALWAYS);
 				pollEvents();
 				inputSystem.pollJoysticks();
+				runAll(RUNNABLE_ALWAYS_AFTER_POLL);
 			}
 		}
 
 		runAll(RUNNABLE_ON_END);
 		
+		// Disable joysticks (frees some callbacks).
+		inputSystem.disableJoysticks();
+		
 		// Destroy the window (its callbacks are freed).
 		window.destroy();
 
 		// Terminate GLFW (its callbacks are freed).
-		GLFWContext.terminate();
+		terminate();
 	}
 	
 	private static void runAll(List<Runnable> runnables)
