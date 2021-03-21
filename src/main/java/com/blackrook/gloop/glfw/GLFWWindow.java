@@ -1,6 +1,14 @@
+/*******************************************************************************
+ * Copyright (c) 2020-2021 Black Rook Software
+ * This program and the accompanying materials are made available under the 
+ * terms of the GNU Lesser Public License v2.1 which accompanies this 
+ * distribution, and is available at 
+ * http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
+ ******************************************************************************/
 package com.blackrook.gloop.glfw;
 
 import java.awt.image.BufferedImage;
+
 import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
@@ -19,7 +27,6 @@ import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 
 import com.blackrook.gloop.glfw.exception.GLFWException;
-import com.blackrook.gloop.glfw.struct.Pair2F;
 
 /**
  * A GLFW window instance.
@@ -993,6 +1000,21 @@ public class GLFWWindow extends GLFWHandle
 	}
 	
 	/** 
+	 * A single point, floating-point. 
+	 */
+	public static class PointF
+	{
+		public float x;
+		public float y;
+		
+		private PointF(float x, float y)
+		{
+			this.x = x;
+			this.y = y;
+		}
+	}
+	
+	/** 
 	 * A dimension. 
 	 */
 	public static class Dimension
@@ -1814,14 +1836,14 @@ public class GLFWWindow extends GLFWHandle
 	 * Depends on monitor.
 	 * @return the scalars.
 	 */
-	public Pair2F getContentScale()
+	public PointF getContentScale()
 	{
 		try (MemoryStack stack = MemoryStack.stackPush())
 		{
 			FloatBuffer fbuf1 = stack.mallocFloat(1);
 			FloatBuffer fbuf2 = stack.mallocFloat(1);
 			GLFW.glfwGetWindowContentScale(handle, fbuf1, fbuf2);
-			return new Pair2F(fbuf1.get(0), fbuf2.get(0));
+			return new PointF(fbuf1.get(0), fbuf2.get(0));
 		}
 	}
 	
