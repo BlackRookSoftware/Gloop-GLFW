@@ -1,4 +1,4 @@
-package com.blackrook.gloop.glfw;
+package com.blackrook.gloop.glfw.input;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
@@ -18,18 +18,19 @@ import java.util.function.Function;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWJoystickCallback;
 
+import com.blackrook.gloop.glfw.GLFWWindow;
 import com.blackrook.gloop.glfw.GLFWWindow.InputListener;
 import com.blackrook.gloop.glfw.GLFWWindow.WindowListener;
-import com.blackrook.gloop.glfw.input.annotation.InputGamepadAxis;
-import com.blackrook.gloop.glfw.input.annotation.InputGamepadButton;
+import com.blackrook.gloop.glfw.input.annotation.InputJoystickAxis;
+import com.blackrook.gloop.glfw.input.annotation.InputJoystickButton;
 import com.blackrook.gloop.glfw.input.annotation.InputJoystickHat;
 import com.blackrook.gloop.glfw.input.annotation.InputKey;
 import com.blackrook.gloop.glfw.input.annotation.InputMouseAxis;
 import com.blackrook.gloop.glfw.input.annotation.InputMouseButton;
 import com.blackrook.gloop.glfw.input.annotation.InputMousePosition;
 import com.blackrook.gloop.glfw.input.annotation.InputMouseScroll;
-import com.blackrook.gloop.glfw.input.annotation.OnGamepadAxisAction;
-import com.blackrook.gloop.glfw.input.annotation.OnGamepadButtonAction;
+import com.blackrook.gloop.glfw.input.annotation.OnJoystickAxisAction;
+import com.blackrook.gloop.glfw.input.annotation.OnJoystickButtonAction;
 import com.blackrook.gloop.glfw.input.annotation.OnJoystickHatAction;
 import com.blackrook.gloop.glfw.input.annotation.OnKeyAction;
 import com.blackrook.gloop.glfw.input.annotation.OnKeyTypedAction;
@@ -37,8 +38,8 @@ import com.blackrook.gloop.glfw.input.annotation.OnMouseAxisAction;
 import com.blackrook.gloop.glfw.input.annotation.OnMouseButtonAction;
 import com.blackrook.gloop.glfw.input.annotation.OnMousePositionAction;
 import com.blackrook.gloop.glfw.input.annotation.OnMouseScrollAction;
-import com.blackrook.gloop.glfw.input.enums.GamepadAxisType;
-import com.blackrook.gloop.glfw.input.enums.GamepadButtonType;
+import com.blackrook.gloop.glfw.input.enums.JoystickAxisType;
+import com.blackrook.gloop.glfw.input.enums.JoystickButtonType;
 import com.blackrook.gloop.glfw.input.enums.JoystickHatType;
 import com.blackrook.gloop.glfw.input.enums.KeyType;
 import com.blackrook.gloop.glfw.input.enums.MouseAxisType;
@@ -76,7 +77,7 @@ public class GLFWInputSystem
 	private List<InputObjectProfile> mouseScrollHandlers;
 	/** The listener to attach to windows to affect input filtering. */
 	private ListenerFilter listener;
-	
+		
 	/** Bit set for what joysticks are present to poll. */
 	private boolean[] joystickIsPresent;
 	/** The input objects to use for each gamepad. */
@@ -86,32 +87,189 @@ public class GLFWInputSystem
 	/** Allocated callback handle. */
 	private GLFWJoystickCallback joystickCallbackHandle;
 
+	/** Joystick setup semaphore. */
+	private Object joystickSetupSemaphore = new Object();
+
+	/** Default Joystick Parameters. */
+	private static final JoystickInputParameters DEFAULT_JOYSTICK_PARAMETERS = new JoystickInputParameters()
+	{
+		@Override
+		public double getAxisPrecisionEpsilon()
+		{
+			return 0.001;
+		}
+		
+		@Override
+		public double getAxisDeadzone(JoystickAxisType type)
+		{
+			return 0.05;
+		}
+	};
+	
+	/**
+	 * Joystick input parameters per added device.
+	 */
+	public interface JoystickInputParameters
+	{
+		/**
+		 * Gets the axis precision epsilon value.
+		 * Axis changes are only reported if the previous value has changed
+		 * by a magnitude greater than this value (which is usually a very small one).
+		 * @return the epsilon value.
+		 */
+		double getAxisPrecisionEpsilon();
+
+		/**
+		 * Gets the deadzone magnitude for a particular axis id.
+		 * Axis changes are only reported if the magnitude of the axis reading is greater than this value.
+		 * The function {@link #getJoystickAxisType(int)} is called before this.
+		 * @param type the joystick axis type.
+		 * @return the deadzone value.
+		 */
+		double getAxisDeadzone(JoystickAxisType type);
+		
+		/**
+		 * Gets a specific axis enumeration for a particular axis id.
+		 * @param glfwAxisId the GLFW axis id.
+		 * @return the returned value.
+		 */
+		default JoystickAxisType getJoystickAxisType(int glfwAxisId)
+		{
+			return JoystickAxisType.getById(glfwAxisId);
+		}
+		
+		/**
+		 * Gets a specific button enumeration for a particular button id.
+		 * @param glfwButtonId the GLFW button id.
+		 * @return the returned value.
+		 */
+		default JoystickButtonType getJoystickButtonType(int glfwButtonId)
+		{
+			return JoystickButtonType.getById(glfwButtonId);
+		}
+	}
+	
 	/**
 	 * Joystick input object.
 	 */
 	private static class JoystickInputObject
 	{
-		/** List of objects that handle gamepad buttons. */
-		private List<InputObjectProfile> gamepadButtonHandlers;
-		/** List of objects that handle gamepad axes. */
-		private List<InputObjectProfile> gamepadAxisHandlers;
+		/** Parameters for this object. */
+		private JoystickInputParameters parameters;
+		/** List of objects that handle joystick buttons. */
+		private List<InputObjectProfile> JoystickButtonHandlers;
+		/** List of objects that handle joystick axes. */
+		private List<InputObjectProfile> JoystickAxisHandlers;
 		/** List of objects that handle joystick hats. */
 		private List<InputObjectProfile> joystickHatHandlers;
+
+		private double[] previousAxisValues;
+		private Boolean[] previousButtonValues;
+		private Integer[] previousHatValues;
 		
-		private JoystickInputObject(Object instance)
+		private JoystickInputObject(JoystickInputParameters parameters, Object instance)
 		{
-			this.gamepadButtonHandlers = null;
-			this.gamepadAxisHandlers = null;
+			this.parameters = parameters;
+			this.JoystickButtonHandlers = null;
+			this.JoystickAxisHandlers = null;
 			this.joystickHatHandlers = null;
 
 			InputObjectProfile profile = new InputObjectProfile(instance);
 
-			if (profile.handlesGamepadButtons())
-				(gamepadButtonHandlers = makeIfNull(gamepadButtonHandlers)).add(profile);
-			if (profile.handlesGamepadAxes())
-				(gamepadAxisHandlers = makeIfNull(gamepadAxisHandlers)).add(profile);
+			if (profile.handlesJoystickButtons())
+				(JoystickButtonHandlers = makeIfNull(JoystickButtonHandlers)).add(profile);
+			if (profile.handlesJoystickAxes())
+				(JoystickAxisHandlers = makeIfNull(JoystickAxisHandlers)).add(profile);
 			if (profile.handlesJoystickHats())
 				(joystickHatHandlers = makeIfNull(joystickHatHandlers)).add(profile);
+		}
+		
+		/**
+		 * Updates controller poll data and send out events for the changes.
+		 * @param axisData the axis data from GLFW.
+		 * @param buttonData the button data from GLFW.
+		 * @param hatData the hat data from GLFW.
+		 */
+		public void update(FloatBuffer axisData, ByteBuffer buttonData, ByteBuffer hatData)
+		{
+			if (needInit())
+				initPreviousValues(axisData.capacity(), buttonData.capacity(), hatData.capacity());
+			for (int i = 0; i < axisData.capacity(); i++)
+				updateAxis(i, axisData.get(i));
+			for (int i = 0; i < buttonData.capacity(); i++)
+				updateButton(i, buttonData.get(i) == GLFW.GLFW_PRESS);
+			for (int i = 0; i < hatData.capacity(); i++)
+				updateHat(i, 0x0ff & hatData.get(i));
+		}
+		
+		// return true if previous value arrays have not been initialized.
+		private boolean needInit()
+		{
+			return previousAxisValues == null || previousButtonValues == null || previousHatValues == null;
+		}
+		
+		// Initializes the axis/button/hat registers.
+		private void initPreviousValues(int axisCount, int buttonCount, int hatCount)
+		{
+			if (previousAxisValues == null)
+			{
+				previousAxisValues = new double[axisCount];
+				Arrays.fill(previousAxisValues, Double.NaN);
+			}
+			if (previousButtonValues == null)
+			{
+				previousButtonValues = new Boolean[buttonCount];
+				Arrays.fill(previousButtonValues, null);
+			}
+			if (previousHatValues == null)
+			{
+				previousHatValues = new Integer[hatCount];
+				Arrays.fill(previousHatValues, null);
+			}
+		}
+
+		// Updates a single axis.
+		private void updateAxis(int index, double value)
+		{
+			if (previousAxisValues == null || index < 0 || index >= previousAxisValues.length)
+				return;
+
+			JoystickAxisType axisType;
+			if ((axisType = parameters.getJoystickAxisType(index)) == null)
+				return;
+			
+			double deadzone = parameters.getAxisDeadzone(axisType);
+			if (Math.abs(value) < deadzone)
+				value = 0.0;
+			
+			if (previousAxisValues[index] != value && Math.abs(value - previousAxisValues[index]) > parameters.getAxisPrecisionEpsilon())
+				fireJoystickAxisEvent(axisType, value);
+			previousAxisValues[index] = value;
+		}
+		
+		// Updates a single button.
+		private void updateButton(int index, boolean value)
+		{
+			if (previousButtonValues == null || index < 0 || index >= previousButtonValues.length)
+				return;
+			
+			JoystickButtonType buttonType;
+			if ((buttonType = parameters.getJoystickButtonType(index)) == null)
+				return;
+
+			if (previousButtonValues[index] == null || previousButtonValues[index] != value)
+				fireJoystickButtonEvent(buttonType, value);
+			previousButtonValues[index] = value;
+		}
+		
+		// Updates a single hat.
+		private void updateHat(int index, int value)
+		{
+			if (previousHatValues == null || index < 0 || index >= previousHatValues.length)
+				return;
+			if (previousHatValues[index] == null || previousHatValues[index] != value)
+				fireJoystickHatEvent(index, JoystickHatType.getById(value));
+			previousHatValues[index] = value;
 		}
 		
 		/**
@@ -120,25 +278,25 @@ public class GLFWInputSystem
 		 * @param pressed true if pressed, false if released.
 		 * @return true if the event was handled by an object, false if not. 
 		 */
-		public boolean fireGamepadButtonEvent(GamepadButtonType type, boolean pressed)
+		public boolean fireJoystickButtonEvent(JoystickButtonType type, boolean pressed)
 		{
 			boolean handled = false;
-			if (gamepadButtonHandlers != null) for (int i = 0; i < gamepadButtonHandlers.size(); i++)
-				handled |= gamepadButtonHandlers.get(i).fireGamepadButton(type, pressed);
+			if (JoystickButtonHandlers != null) for (int i = 0; i < JoystickButtonHandlers.size(); i++)
+				handled |= JoystickButtonHandlers.get(i).fireJoystickButton(type, pressed);
 			return handled;
 		}
 		
 		/**
-		 * Fires a gamepad axis event in this system. 
-		 * @param type the gamepad axis type.
+		 * Fires a joystick axis event in this system. 
+		 * @param type the joystick axis type.
 		 * @param amount the amount moved.
 		 * @return true if the event was handled by an object, false if not. 
 		 */
-		public boolean fireGamepadAxisEvent(GamepadAxisType type, double amount)
+		public boolean fireJoystickAxisEvent(JoystickAxisType type, double amount)
 		{
 			boolean handled = false;
-			if (gamepadAxisHandlers != null) for (int i = 0; i < gamepadAxisHandlers.size(); i++)
-				handled |= gamepadAxisHandlers.get(i).fireGamepadAxis(type, amount);
+			if (JoystickAxisHandlers != null) for (int i = 0; i < JoystickAxisHandlers.size(); i++)
+				handled |= JoystickAxisHandlers.get(i).fireJoystickAxis(type, amount);
 			return handled;
 		}
 		
@@ -278,10 +436,24 @@ public class GLFWInputSystem
 	 */
 	public void addJoystickInputObject(int jid, Object inputObject)
 	{
+		addJoystickInputObject(jid, DEFAULT_JOYSTICK_PARAMETERS, inputObject);
+	}
+	
+	/**
+	 * Adds a joystick-specific object that is annotated for receiving input events to this input system.
+	 * Adding or removing an object from this system in thread-safe.
+	 * Adding a joystick where a JID is already used will remove the old one.
+	 * @param jid the joystick id.
+	 * @param parameters the joystick parameters.
+	 * @param inputObject the input object to add.
+	 * @throws InputSetupException if an object's annotations are not set up properly.
+	 */
+	public void addJoystickInputObject(int jid, JoystickInputParameters parameters, Object inputObject)
+	{
 		removeJoystickInputObject(jid);
 		synchronized (joystickInputObjects)
 		{
-			joystickInputObjects[jid] = new JoystickInputObject(inputObject);
+			joystickInputObjects[jid] = new JoystickInputObject(parameters, inputObject);
 		}
 	}
 	
@@ -321,8 +493,8 @@ public class GLFWInputSystem
 	 */
 	public void detachFromWindow(GLFWWindow window)
 	{
-		window.addInputListener(listener);
-		window.addWindowListener(listener);
+		window.removeInputListener(listener);
+		window.removeWindowListener(listener);
 	}
 	
 	/**
@@ -360,43 +532,42 @@ public class GLFWInputSystem
 	 * If joysticks are already enabled, this does nothing.
 	 * <p>This will fire connection events to {@link JoystickConnectionListener}s for 
 	 * each joystick found at enable so that they can be attached as input listeners.
+	 * <p><b>This must only be called from the main thread.</b>
 	 */
 	public void enableJoysticks()
 	{
 		if (joystickCallbackHandle != null)
 			return;
 		
-		joystickCallbackHandle = GLFW.glfwSetJoystickCallback((jid, event) -> 
+		synchronized (joystickSetupSemaphore)
 		{
-			switch (event)
+			if (joystickCallbackHandle != null)
+				return;
+			
+			joystickCallbackHandle = GLFW.glfwSetJoystickCallback((jid, event) -> 
 			{
-				case GLFW.GLFW_CONNECTED:
+				switch (event)
 				{
-					for (int i = 0; i < joystickListeners.size(); i++)
-						joystickListeners.get(i).onJoystickConnect(jid, GLFW.glfwJoystickIsGamepad(jid), GLFW.glfwGetJoystickGUID(jid), GLFW.glfwGetJoystickName(jid));
-					joystickIsPresent[jid] = true;
+					case GLFW.GLFW_CONNECTED:
+						connectJoystick(jid);
+						break;
+					
+					case GLFW.GLFW_DISCONNECTED:
+						disconnectJoystick(jid);
+						break;
 				}
-				break;
-				
-				case GLFW.GLFW_DISCONNECTED:
-				{
-					for (int i = 0; i < joystickListeners.size(); i++)
-						joystickListeners.get(i).onJoystickDisconnect(jid);
-					joystickIsPresent[jid] = false;
-				}
-				break;
+			});
+			
+			joystickIsPresent = new boolean[GLFW.GLFW_JOYSTICK_LAST + 1];
+			joystickInputObjects = new JoystickInputObject[GLFW.GLFW_JOYSTICK_LAST + 1];
+			for (int jid = 0; jid < joystickIsPresent.length; jid++)
+			{
+				if (!GLFW.glfwJoystickPresent(jid))
+					continue;
+				for (int i = 0; i < joystickListeners.size(); i++)
+					connectJoystick(jid);
 			}
-		});
-		
-		joystickIsPresent = new boolean[GLFW.GLFW_JOYSTICK_LAST + 1];
-		joystickInputObjects = new JoystickInputObject[GLFW.GLFW_JOYSTICK_LAST + 1];
-		for (int jid = 0; jid < joystickIsPresent.length; jid++)
-		{
-			if (!GLFW.glfwJoystickPresent(jid))
-				continue;
-			for (int i = 0; i < joystickListeners.size(); i++)
-				joystickListeners.get(i).onJoystickConnect(jid, GLFW.glfwJoystickIsGamepad(jid), GLFW.glfwGetJoystickGUID(jid), GLFW.glfwGetJoystickName(jid));
-		}
+		}		
 	}
 	
 	/**
@@ -427,14 +598,42 @@ public class GLFWInputSystem
 			if (!joystickIsPresent[jid])
 				continue;
 			
-			FloatBuffer axisData = GLFW.glfwGetJoystickAxes(jid);
-			ByteBuffer buttonData = GLFW.glfwGetJoystickButtons(jid);
-			ByteBuffer hatData = GLFW.glfwGetJoystickHats(jid);
+			JoystickInputObject input;
+			if ((input = joystickInputObjects[jid]) == null)
+				return;
 			
-			// TODO: Finish this.
+			// There can be a race condition where a disconnected or removed controller could NPE.
+			// Test for non-null axes/buttons before update.
+			FloatBuffer abuf = GLFW.glfwGetJoystickAxes(jid);
+			ByteBuffer bbuf = GLFW.glfwGetJoystickButtons(jid);
+			ByteBuffer hbuf = GLFW.glfwGetJoystickHats(jid);
+
+			if (abuf != null && bbuf != null && hbuf != null)
+				input.update(abuf, bbuf, hbuf);
 		}
 	}
 	
+	// Connect joystick.
+	private void connectJoystick(int jid)
+	{
+		for (int i = 0; i < joystickListeners.size(); i++)
+			joystickListeners.get(i).onJoystickConnect(
+				jid, 
+				GLFW.glfwJoystickIsGamepad(jid), 
+				GLFW.glfwGetJoystickGUID(jid), 
+				GLFW.glfwGetJoystickName(jid)
+			);
+		joystickIsPresent[jid] = true;
+	}
+
+	// Disconnect joystick.
+	private void disconnectJoystick(int jid)
+	{
+		for (int i = 0; i < joystickListeners.size(); i++)
+			joystickListeners.get(i).onJoystickDisconnect(jid);
+		joystickIsPresent[jid] = false;
+	}
+
 	/**
 	 * Fires a key event in this system. 
 	 * @param type the key type.
@@ -519,27 +718,27 @@ public class GLFWInputSystem
 	}
 	
 	/**
-	 * Fires a gamepad button event in this system.
+	 * Fires a joystick button event in this system.
 	 * @param jid the joystick id to fire to.
-	 * @param type the gamepad button type.
+	 * @param type the joystick button type.
 	 * @param pressed true if pressed, false if released.
 	 * @return true if the event was handled by an object, false if not. 
 	 */
-	public boolean fireGamepadButtonEvent(int jid, GamepadButtonType type, boolean pressed)
+	public boolean fireJoystickButtonEvent(int jid, JoystickButtonType type, boolean pressed)
 	{
-		return joystickInputObjects[jid] == null ? false : joystickInputObjects[jid].fireGamepadButtonEvent(type, pressed);
+		return joystickInputObjects[jid] == null ? false : joystickInputObjects[jid].fireJoystickButtonEvent(type, pressed);
 	}
 	
 	/**
-	 * Fires a gamepad axis event in this system. 
+	 * Fires a joystick axis event in this system. 
 	 * @param jid the joystick id to fire to.
-	 * @param type the gamepad axis type.
+	 * @param type the joystick axis type.
 	 * @param amount the amount moved.
 	 * @return true if the event was handled by an object, false if not. 
 	 */
-	public boolean fireGamepadAxisEvent(int jid, GamepadAxisType type, double amount)
+	public boolean fireJoystickAxisEvent(int jid, JoystickAxisType type, double amount)
 	{
-		return joystickInputObjects[jid] == null ? false : joystickInputObjects[jid].fireGamepadAxisEvent(type, amount);
+		return joystickInputObjects[jid] == null ? false : joystickInputObjects[jid].fireJoystickAxisEvent(type, amount);
 	}
 	
 	/**
@@ -819,14 +1018,14 @@ public class GLFWInputSystem
 		private Method mousePositionEventMethod;
 		private Method mouseScrollEventMethod;
 		
-		private Map<GamepadButtonType, Field> gamepadButtonFields;
-		private Map<GamepadButtonType, Method> gamepadButtonMethods;
-		private Map<GamepadAxisType, Field> gamepadAxisFields;
-		private Map<GamepadAxisType, Method> gamepadAxisMethods;
+		private Map<JoystickButtonType, Field> JoystickButtonFields;
+		private Map<JoystickButtonType, Method> JoystickButtonMethods;
+		private Map<JoystickAxisType, Field> JoystickAxisFields;
+		private Map<JoystickAxisType, Method> JoystickAxisMethods;
 		private Map<Integer, Field> joystickHatFields;
 		private Map<Integer, Method> joystickHatMethods;
-		private Method gamepadButtonEventMethod;
-		private Method gamepadAxisEventMethod;
+		private Method JoystickButtonEventMethod;
+		private Method JoystickAxisEventMethod;
 		private Method joystickHatEventMethod;
 		
 		InputObjectProfile(Object instance)
@@ -863,14 +1062,14 @@ public class GLFWInputSystem
 					(value)->(mouseScrollFields = makeIfNull(mouseScrollFields)).put(value, f)
 				);
 				annotationFill(
-					isValidGamepadButtonInputField(f), 
+					isValidJoystickButtonInputField(f), 
 					(anno)->anno.value(), 
-					(value)->(gamepadButtonFields = makeIfNull(gamepadButtonFields)).put(value, f)
+					(value)->(JoystickButtonFields = makeIfNull(JoystickButtonFields)).put(value, f)
 				);
 				annotationFill(
-					isValidGamepadAxisInputField(f), 
+					isValidJoystickAxisInputField(f), 
 					(anno)->anno.value(), 
-					(value)->(gamepadAxisFields = makeIfNull(gamepadAxisFields)).put(value, f)
+					(value)->(JoystickAxisFields = makeIfNull(JoystickAxisFields)).put(value, f)
 				);
 				annotationFill(
 					isValidJoystickHatInputField(f), 
@@ -910,14 +1109,14 @@ public class GLFWInputSystem
 					(value)->(mouseScrollMethods = makeIfNull(mouseScrollMethods)).put(value, m)
 				);
 				annotationFill(
-					isValidGamepadButtonInputSetterMethod(m), 
+					isValidJoystickButtonInputSetterMethod(m), 
 					(anno)->anno.value(), 
-					(value)->(gamepadButtonMethods = makeIfNull(gamepadButtonMethods)).put(value, m)
+					(value)->(JoystickButtonMethods = makeIfNull(JoystickButtonMethods)).put(value, m)
 				);
 				annotationFill(
-					isValidGamepadAxisInputSetterMethod(m), 
+					isValidJoystickAxisInputSetterMethod(m), 
 					(anno)->anno.value(), 
-					(value)->(gamepadAxisMethods = makeIfNull(gamepadAxisMethods)).put(value, m)
+					(value)->(JoystickAxisMethods = makeIfNull(JoystickAxisMethods)).put(value, m)
 				);
 				annotationFill(
 					isValidJoystickHatInputSetterMethod(m), 
@@ -937,10 +1136,10 @@ public class GLFWInputSystem
 					mousePositionEventMethod = m;
 				if (isValidMouseWheelEventMethod(m) != null)
 					mouseScrollEventMethod = m;
-				if (isValidGamepadButtonEventMethod(m) != null)
-					gamepadButtonEventMethod = m;
-				if (isValidGamepadAxisEventMethod(m) != null)
-					gamepadAxisEventMethod = m;
+				if (isValidJoystickButtonEventMethod(m) != null)
+					JoystickButtonEventMethod = m;
+				if (isValidJoystickAxisEventMethod(m) != null)
+					JoystickAxisEventMethod = m;
 				if (isValidJoystickHatEventMethod(m) != null)
 					joystickHatEventMethod = m;
 			}
@@ -1003,21 +1202,21 @@ public class GLFWInputSystem
 		}
 		
 		/**
-		 * Checks if this object handles gamepad button events.
+		 * Checks if this object handles joystick button events.
 		 * @return true if so, false if not. 
 		 */
-		public boolean handlesGamepadButtons()
+		public boolean handlesJoystickButtons()
 		{
-			return !isEmpty(gamepadButtonFields) || !isEmpty(gamepadButtonMethods) || !isEmpty(gamepadButtonEventMethod);
+			return !isEmpty(JoystickButtonFields) || !isEmpty(JoystickButtonMethods) || !isEmpty(JoystickButtonEventMethod);
 		}
 		
 		/**
-		 * Checks if this object handles gamepad axis events.
+		 * Checks if this object handles joystick axis events.
 		 * @return true if so, false if not. 
 		 */
-		public boolean handlesGamepadAxes()
+		public boolean handlesJoystickAxes()
 		{
-			return !isEmpty(gamepadAxisFields) || !isEmpty(gamepadAxisMethods) || !isEmpty(gamepadAxisEventMethod);
+			return !isEmpty(JoystickAxisFields) || !isEmpty(JoystickAxisMethods) || !isEmpty(JoystickAxisEventMethod);
 		}
 		
 		/**
@@ -1106,27 +1305,27 @@ public class GLFWInputSystem
 		}
 		
 		/**
-		 * Fires a gamepad button event to this object.
-		 * @param type the gamepad button type.
+		 * Fires a joystick button event to this object.
+		 * @param type the joystick button type.
 		 * @param pressed true if pressed, false if released.
 		 * @return true if handled by this object, false if not. 
 		 * @throws InputDispatchException if a field or method could not be invoked.
 		 */
-		public boolean fireGamepadButton(GamepadButtonType type, boolean pressed)
+		public boolean fireJoystickButton(JoystickButtonType type, boolean pressed)
 		{
-			return fireEvent(gamepadButtonFields, gamepadButtonMethods, gamepadButtonEventMethod, type, pressed);
+			return fireEvent(JoystickButtonFields, JoystickButtonMethods, JoystickButtonEventMethod, type, pressed);
 		}
 		
 		/**
-		 * Fires a gamepad axis event to this object.
-		 * @param type the gamepad axis type.
+		 * Fires a joystick axis event to this object.
+		 * @param type the joystick axis type.
 		 * @param value the movement on the axis.
 		 * @return true if handled by this object, false if not. 
 		 * @throws InputDispatchException if a field or method could not be invoked.
 		 */
-		public boolean fireGamepadAxis(GamepadAxisType type, double value)
+		public boolean fireJoystickAxis(JoystickAxisType type, double value)
 		{
-			return fireEvent(gamepadAxisFields, gamepadAxisMethods, gamepadAxisEventMethod, type, value);
+			return fireEvent(JoystickAxisFields, JoystickAxisMethods, JoystickAxisEventMethod, type, value);
 		}
 		
 		/**
@@ -1279,18 +1478,18 @@ public class GLFWInputSystem
 			return checkInputFieldAnnotationType(field, InputMouseScroll.class, Double.TYPE);
 		}
 
-		// Checks if a field is suitable for using as a target for gamepad button actions.
-		// See @InputGamepadButton.
-		private static InputGamepadButton isValidGamepadButtonInputField(Field field)
+		// Checks if a field is suitable for using as a target for joystick button actions.
+		// See @InputJoystickButton.
+		private static InputJoystickButton isValidJoystickButtonInputField(Field field)
 		{
-			return checkInputFieldAnnotationType(field, InputGamepadButton.class, Boolean.TYPE);
+			return checkInputFieldAnnotationType(field, InputJoystickButton.class, Boolean.TYPE);
 		}
 
-		// Checks if a field is suitable for using as a target for gamepad axis actions.
-		// See @InputGamepadAxis.
-		private static InputGamepadAxis isValidGamepadAxisInputField(Field field)
+		// Checks if a field is suitable for using as a target for joystick axis actions.
+		// See @InputJoystickAxis.
+		private static InputJoystickAxis isValidJoystickAxisInputField(Field field)
 		{
-			return checkInputFieldAnnotationType(field, InputGamepadAxis.class, Boolean.TYPE);
+			return checkInputFieldAnnotationType(field, InputJoystickAxis.class, Boolean.TYPE);
 		}
 
 		// Checks if a field is suitable for using as a target for joystick hat actions.
@@ -1335,18 +1534,18 @@ public class GLFWInputSystem
 			return checkInputMethodAnnotationType(method, InputMouseScroll.class, Double.TYPE);
 		}
 
-		// Checks if a method is suitable for using as a target for gamepad button actions.
-		// See @InputGamepadButton.
-		private static InputGamepadButton isValidGamepadButtonInputSetterMethod(Method method)
+		// Checks if a method is suitable for using as a target for joystick button actions.
+		// See @InputJoystickButton.
+		private static InputJoystickButton isValidJoystickButtonInputSetterMethod(Method method)
 		{
-			return checkInputMethodAnnotationType(method, InputGamepadButton.class, Boolean.TYPE);
+			return checkInputMethodAnnotationType(method, InputJoystickButton.class, Boolean.TYPE);
 		}
 
-		// Checks if a method is suitable for using as a target for gamepad axis actions.
-		// See @InputGamepadAxis.
-		private static InputGamepadAxis isValidGamepadAxisInputSetterMethod(Method method)
+		// Checks if a method is suitable for using as a target for joystick axis actions.
+		// See @InputJoystickAxis.
+		private static InputJoystickAxis isValidJoystickAxisInputSetterMethod(Method method)
 		{
-			return checkInputMethodAnnotationType(method, InputGamepadAxis.class, Double.TYPE);
+			return checkInputMethodAnnotationType(method, InputJoystickAxis.class, Double.TYPE);
 		}
 
 		// Checks if a method is suitable for using as a target for joystick hat actions.
@@ -1398,18 +1597,18 @@ public class GLFWInputSystem
 			return checkInputMethodAnnotationType(method, OnMouseScrollAction.class, MouseAxisType.class, Double.TYPE);
 		}
 
-		// Checks if a method is suitable for using as a target for gamepad button actions.
-		// See @OnGamepadButtonAction.
-		private static OnGamepadButtonAction isValidGamepadButtonEventMethod(Method method)
+		// Checks if a method is suitable for using as a target for joystick button actions.
+		// See @OnJoystickButtonAction.
+		private static OnJoystickButtonAction isValidJoystickButtonEventMethod(Method method)
 		{
-			return checkInputMethodAnnotationType(method, OnGamepadButtonAction.class, GamepadButtonType.class, Boolean.TYPE);
+			return checkInputMethodAnnotationType(method, OnJoystickButtonAction.class, JoystickButtonType.class, Boolean.TYPE);
 		}
 
-		// Checks if a method is suitable for using as a target for gamepad axis actions.
-		// See @OnGamepadAxisAction.
-		private static OnGamepadAxisAction isValidGamepadAxisEventMethod(Method method)
+		// Checks if a method is suitable for using as a target for joystick axis actions.
+		// See @OnJoystickAxisAction.
+		private static OnJoystickAxisAction isValidJoystickAxisEventMethod(Method method)
 		{
-			return checkInputMethodAnnotationType(method, OnGamepadAxisAction.class, GamepadAxisType.class, Double.TYPE);
+			return checkInputMethodAnnotationType(method, OnJoystickAxisAction.class, JoystickAxisType.class, Double.TYPE);
 		}
 
 		// Checks if a method is suitable for using as a target for joystick hat actions.

@@ -6,12 +6,23 @@ import java.util.Arrays;
 import org.lwjgl.Version;
 import org.lwjgl.glfw.GLFWVidMode;
 
+import com.blackrook.gloop.glfw.input.GLFWInputSystem;
+import com.blackrook.gloop.glfw.input.GLFWInputSystem.JoystickConnectionListener;
+import com.blackrook.gloop.glfw.input.annotation.OnJoystickAxisAction;
+import com.blackrook.gloop.glfw.input.annotation.OnJoystickButtonAction;
+import com.blackrook.gloop.glfw.input.annotation.OnJoystickHatAction;
 import com.blackrook.gloop.glfw.input.annotation.OnKeyAction;
 import com.blackrook.gloop.glfw.input.annotation.OnKeyTypedAction;
 import com.blackrook.gloop.glfw.input.annotation.OnMouseAxisAction;
+import com.blackrook.gloop.glfw.input.annotation.OnMouseButtonAction;
 import com.blackrook.gloop.glfw.input.annotation.OnMousePositionAction;
+import com.blackrook.gloop.glfw.input.annotation.OnMouseScrollAction;
+import com.blackrook.gloop.glfw.input.enums.JoystickAxisType;
+import com.blackrook.gloop.glfw.input.enums.JoystickButtonType;
+import com.blackrook.gloop.glfw.input.enums.JoystickHatType;
 import com.blackrook.gloop.glfw.input.enums.KeyType;
 import com.blackrook.gloop.glfw.input.enums.MouseAxisType;
+import com.blackrook.gloop.glfw.input.enums.MouseButtonType;
 
 public final class GLFWTest 
 {
@@ -21,15 +32,8 @@ public final class GLFWTest
 	public void run() 
 	{
 		System.out.println("Hello LWJGL " + Version.getVersion() + "!");
-
 		init();
-		loop();
-
-		// Free the window callbacks and destroy the window
-		window.destroy();
-
-		// Terminate GLFW and free the error callback
-		GLFWContext.terminate();
+		GLFWContext.mainLoop(window, inputSystem);
 	}
 	
 	private void init()
@@ -52,10 +56,32 @@ public final class GLFWTest
 
 		inputSystem.attachToWindow(window);
 		inputSystem.addInputObject(new Keyboard());
+		inputSystem.addJoystickListener(new JoystickConnectionListener()
+		{
+			@Override
+			public void onJoystickConnect(int joystickId, boolean isGamepad, String guid, String name)
+			{
+				System.out.println("Connect " + joystickId);
+				System.out.println("    Gamepad? " + isGamepad);
+				System.out.println("    GUID:    " + guid);
+				System.out.println("    Name:    " + name);
+				inputSystem.addJoystickInputObject(joystickId, new Gamepad());
+			}
 
-		window.addDropListener((window, files)->{
+			@Override
+			public void onJoystickDisconnect(int joystickId)
+			{
+				System.out.println("Disconnect " + joystickId);
+				inputSystem.removeJoystickInputObject(joystickId);
+			}
+		});
+
+		window.addDropListener((window, files) ->
+		{
 			System.out.println(Arrays.toString(files));
 		});
+		
+		inputSystem.enableJoysticks();
 
 		// Get the resolution of the primary monitor
 		GLFWVidMode vidmode = GLFWMonitor.getPrimaryMonitor().getVideoMode();
@@ -67,23 +93,15 @@ public final class GLFWTest
 			(vidmode.height() - (int)dimension.getHeight()) / 2
 		);
 
-		GLFWContext.makeWindowContextCurrent(window);
-
 		// Enable v-sync
 		GLFWContext.setSwapInterval(1);
 
+		GLFWContext.makeWindowContextCurrent(window);
+
 		// Make the window visible
 		window.setVisible(true);
-	}
-
-	private void loop() 
-	{
-		while (!window.isClosing())
-		{
-			window.swapBuffers();
-			GLFWContext.pollEvents();
-			inputSystem.pollJoysticks();
-		}
+		
+		GLFWContext.addAlwaysRunnable(()->window.swapBuffers());
 	}
 
 	public class Keyboard
@@ -104,21 +122,48 @@ public final class GLFWTest
 		@OnMouseAxisAction
 		public void onMouseAxis(MouseAxisType type, double amount)
 		{
-			if (type == MouseAxisType.X)
-				System.out.println("Mouse X: " + amount);
-			else if (type == MouseAxisType.Y)
-				System.out.println("Mouse Y: " + amount);
+			System.out.println("Mouse " + type + ": " + amount);
 		}
 
 		@OnMousePositionAction
 		public void onMousePosition(MouseAxisType type, double value)
 		{
-			if (type == MouseAxisType.X)
-				System.out.println("Mouse Pos X: " + value);
-			else if (type == MouseAxisType.Y)
-				System.out.println("Mouse Pos Y: " + value);
+			System.out.println("Mouse Position " + type + ": " + value);
+		}
+
+		@OnMouseButtonAction
+		public void onMouseButton(MouseButtonType type, boolean pressed)
+		{
+			System.out.println("Mouse " + type + ": " + pressed);
+		}
+
+		@OnMouseScrollAction
+		public void onMouseScroll(MouseAxisType type, double amount)
+		{
+			System.out.println("Mouse Scroll " + type + ": " + amount);
+		}
+
+	}
+	
+	public class Gamepad
+	{
+		@OnJoystickAxisAction
+		public void onAxis(JoystickAxisType type, double value)
+		{
+			System.out.println("Axis " + type + ": " + value);
+		}
+
+		@OnJoystickButtonAction
+		public void onButton(JoystickButtonType type, boolean pressed)
+		{
+			System.out.println("Button " + type + ": " + pressed);
 		}
 		
+		@OnJoystickHatAction
+		public void onHat(int index, JoystickHatType type)
+		{
+			System.out.println("Hat " + index + ": " + type);
+		}
 	}
 
 	public static void main(String[] args) 

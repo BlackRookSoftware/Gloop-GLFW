@@ -6,32 +6,34 @@ import java.util.Map;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * All valid input gamepad axes.
+ * All valid input joystick axes.
  * @author Matthew Tropiano
  */
-public enum GamepadAxisType
+public enum JoystickAxisType
 {
 	LEFT_X(GLFW.GLFW_GAMEPAD_AXIS_LEFT_X),
 	LEFT_Y(GLFW.GLFW_GAMEPAD_AXIS_LEFT_Y),
 	RIGHT_X(GLFW.GLFW_GAMEPAD_AXIS_RIGHT_X),
 	RIGHT_Y(GLFW.GLFW_GAMEPAD_AXIS_RIGHT_Y),
-	LEFT_TRIGGER(GLFW.GLFW_GAMEPAD_AXIS_LEFT_TRIGGER),
-	RIGHT_TRIGGER(GLFW.GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER),
-	LAST(GLFW.GLFW_GAMEPAD_AXIS_LAST);
 
-	private static final Map<Integer, GamepadAxisType> VALUE_MAP = new HashMap<Integer, GamepadAxisType>()
+	L2(GLFW.GLFW_GAMEPAD_AXIS_LEFT_TRIGGER),
+	R2(GLFW.GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER),
+
+	LEFT_TRIGGER(GLFW.GLFW_GAMEPAD_AXIS_LEFT_TRIGGER),
+	RIGHT_TRIGGER(GLFW.GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER);
+
+	private static final Map<Integer, JoystickAxisType> VALUE_MAP = new HashMap<Integer, JoystickAxisType>()
 	{
 		private static final long serialVersionUID = -7901479982306401986L;
 		{
-			for (GamepadAxisType b : GamepadAxisType.values())
+			for (JoystickAxisType b : JoystickAxisType.values())
 				put(b.glfwId, b);
 		}
-		
 	};
 	
 	private int glfwId;
 	
-	private GamepadAxisType(int glfwId)
+	private JoystickAxisType(int glfwId)
 	{
 		this.glfwId = glfwId;
 	}
@@ -41,7 +43,7 @@ public enum GamepadAxisType
 	 * @param glfwId the id.
 	 * @return the corresponding type, or null if not found.
 	 */
-	public static final GamepadAxisType getById(int glfwId)
+	public static final JoystickAxisType getById(int glfwId)
 	{
 		return VALUE_MAP.get(glfwId);
 	}
