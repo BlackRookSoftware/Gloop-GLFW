@@ -117,9 +117,8 @@ public final class GLFWContext
 	 * @throws IllegalStateException if the provided window is not null, and already current on a different thread.
 	 * @see GLFW#glfwMakeContextCurrent(long)
 	 */
-	public static void makeWindowContextCurrent(GLFWWindow window)
+	public static void makeContextCurrent(GLFWWindow window)
 	{
-		init();
 		Thread currentThread = Thread.currentThread();
 		if (window != null)
 		{
@@ -150,23 +149,22 @@ public final class GLFWContext
 	/**
 	 * Sets how many vertical blanks need to occur before a window buffer swap.
 	 * In layman's terms, this either sets VSync on (1) or off (0).
-	 * <p>This cannot be called until {@link #makeWindowContextCurrent(GLFWWindow)} is called in this thread.
+	 * <p>This cannot be called until {@link #makeContextCurrent(GLFWWindow)} is called in this thread.
 	 * <p>This can be called from any thread.
 	 * @param blanks the amount of vertical blanks to wait.
 	 * @throws IllegalArgumentException if blanks is less than 0.
-	 * @see GLFWContext#makeWindowContextCurrent(GLFWWindow)
+	 * @see GLFWContext#makeContextCurrent(GLFWWindow)
 	 */
 	public static void setSwapInterval(int blanks)
 	{
 		if (blanks < 0)
 			throw new IllegalArgumentException("blanks cannot be less than 0");
-		init();
 		GLFW.glfwSwapInterval(blanks);
 	}
 
 	/**
 	 * Polls and processes all pending events.
-	 * Any event that came in from any window is flushed and processed by bound listeners.
+	 * Any event that came in from any window is flushed through the callbacks and processed by bound listeners.
 	 * <p><b>This must only be called from the main thread. 
 	 * It is suggested that this be put in a loop at the end of initialization.</b>
 	 * <p><b>This must NOT be called from any callback nor listener.</b>

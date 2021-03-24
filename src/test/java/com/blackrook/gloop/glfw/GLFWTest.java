@@ -164,7 +164,7 @@ public final class GLFWTest
 		
 		window.center(GLFWMonitor.getPrimaryMonitor());
 
-		GLFWContext.makeWindowContextCurrent(window);
+		GLFWContext.makeContextCurrent(window);
 
 		// Enable v-sync
 		GLFWContext.setSwapInterval(1);
