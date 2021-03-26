@@ -168,12 +168,52 @@ public final class GLFWContext
 	 * <p><b>This must only be called from the main thread. 
 	 * It is suggested that this be put in a loop at the end of initialization.</b>
 	 * <p><b>This must NOT be called from any callback nor listener.</b>
-	 * @throws IllegalArgumentException if blanks is less than 0.
 	 */
 	public static void pollEvents()
 	{
 		init();
 		GLFW.glfwPollEvents();
+	}
+
+	/**
+	 * Polls and processes all pending events, but waits for an event first.
+	 * Any event that came in from any window is flushed through the callbacks and processed by bound listeners.
+	 * <p><b>This must only be called from the main thread. 
+	 * It is suggested that this be put in a loop at the end of initialization.</b>
+	 * <p><b>This must NOT be called from any callback nor listener.</b>
+	 */
+	public static void awaitEvents()
+	{
+		init();
+		GLFW.glfwWaitEvents();
+	}
+
+	/**
+	 * Polls and processes all pending events, but waits for an event first for a specific amount of time.
+	 * Any event that came in from any window is flushed through the callbacks and processed by bound listeners.
+	 * <p><b>This must only be called from the main thread. 
+	 * It is suggested that this be put in a loop at the end of initialization.</b>
+	 * <p><b>This must NOT be called from any callback nor listener.</b>
+	 * <p>NOTE: The corresponding call in GLFW uses a double for its wait parameter. 
+	 * This is in milliseconds because anything smaller than a millisecond does not 
+	 * sleep an adequate time, and would act as though you called <code>glfwPollEvents()</code> instead.
+	 * @param millis the time in milliseconds to wait.
+	 */
+	public static void awaitEvents(long millis)
+	{
+		init();
+		GLFW.glfwWaitEventsTimeout(millis / 1000.0);
+	}
+
+	/**
+	 * Posts an empty event so that a call to {@link #awaitEvents()}
+	 * continues on without receiving anything processable.
+	 * <p>This can be called from any thread.
+	 */
+	public static void postEmptyEvent()
+	{
+		init();
+		GLFW.glfwPostEmptyEvent();
 	}
 
 	/**
@@ -294,8 +334,8 @@ public final class GLFWContext
 			{
 				runAll(RUNNABLE_ONCE);
 				runAll(RUNNABLE_ALWAYS);
-				pollEvents();
 				inputSystem.pollJoysticks();
+				awaitEvents(1);
 				runAll(RUNNABLE_ALWAYS_AFTER_POLL);
 			}
 		}
