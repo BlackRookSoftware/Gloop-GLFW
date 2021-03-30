@@ -34,12 +34,6 @@ public final class GLFWContext
 	private static Map<GLFWWindow, Thread> WINDOW_TO_CONTEXT_THREAD;
 	private static Map<Thread, GLFWWindow> CONTEXT_THREAD_TO_WINDOW;
 
-	private static Object RUNNABLE_MUTEX;
-	private static List<Runnable> RUNNABLE_ALWAYS;
-	private static Deque<Runnable> RUNNABLE_ONCE;
-	private static List<Runnable> RUNNABLE_ALWAYS_AFTER_POLL;
-	private static Deque<Runnable> RUNNABLE_ON_END;
-
 	/**
 	 * Initializes GLFW.
 	 * If already initialized, this does nothing.
@@ -56,11 +50,6 @@ public final class GLFWContext
 		GLFW.glfwDefaultWindowHints();
 		WINDOW_TO_CONTEXT_THREAD = new HashMap<>(4);
 		CONTEXT_THREAD_TO_WINDOW = new HashMap<>(4);
-		RUNNABLE_ALWAYS = new ArrayList<>(4);
-		RUNNABLE_ALWAYS_AFTER_POLL = new ArrayList<>(4);
-		RUNNABLE_ONCE = new LinkedList<>();
-		RUNNABLE_ON_END = new LinkedList<>();
-		RUNNABLE_MUTEX = new Object();
 		initialized = true;
 	}
 	
@@ -76,11 +65,6 @@ public final class GLFWContext
 			return;
 		WINDOW_TO_CONTEXT_THREAD = null;
 		CONTEXT_THREAD_TO_WINDOW = null;
-		RUNNABLE_ALWAYS = null;
-		RUNNABLE_ALWAYS_AFTER_POLL = null;
-		RUNNABLE_ONCE = null;
-		RUNNABLE_ON_END = null;
-		RUNNABLE_MUTEX = null;
 		GLFW.glfwTerminate();
 		setErrorStream(null);
 		initialized = false;
@@ -217,151 +201,235 @@ public final class GLFWContext
 	}
 
 	/**
-	 * Adds a Runnable that is invoked at the beginning of the loop
-	 * in {@link #mainLoop(GLFWWindow, GLFWInputSystem)} such that they execute on the main thread.
-	 * Runnables are executed in the order that they are added this way. 
-	 * @param runnable the runnable to add.
-	 * @see #mainLoop(GLFWWindow, GLFWInputSystem)
-	 */
-	public static void addRunnableAlways(Runnable runnable)
-	{
-		synchronized (RUNNABLE_MUTEX)
-		{
-			RUNNABLE_ALWAYS.add(runnable);
-		}
-	}
-
-	/**
-	 * Removes a Runnable that was added by {@link #addRunnableAlways(Runnable)}.
-	 * @param runnable the runnable to remove.
-	 * @see #mainLoop(GLFWWindow, GLFWInputSystem)
-	 */
-	public static void removeRunnableAlways(Runnable runnable)
-	{
-		synchronized (RUNNABLE_MUTEX)
-		{
-			RUNNABLE_ALWAYS.remove(runnable);
-		}
-	}
-
-	/**
-	 * Adds a Runnable that is invoked at the end of the loop after events are polled
-	 * in {@link #mainLoop(GLFWWindow, GLFWInputSystem)} such that they execute on the main thread, 
-	 * after event/input polling.
-	 * <p>Runnables are executed in the order that they are added this way, after event/input polling.
-	 * <p>This can be called from any thread.
-	 * @param runnable the runnable to add.
-	 * @see #mainLoop(GLFWWindow, GLFWInputSystem)
-	 */
-	public static void addRunnableAlwaysAfterPoll(Runnable runnable)
-	{
-		synchronized (RUNNABLE_MUTEX)
-		{
-			RUNNABLE_ALWAYS_AFTER_POLL.add(runnable);
-		}
-	}
-
-	/**
-	 * Removes a Runnable that was added by {@link #addRunnableAlwaysAfterPoll(Runnable)}.
-	 * @param runnable the runnable to remove.
-	 * @see #mainLoop(GLFWWindow, GLFWInputSystem)
-	 */
-	public static void removeRunnableAlwaysAfterPoll(Runnable runnable)
-	{
-		synchronized (RUNNABLE_MUTEX)
-		{
-			RUNNABLE_ALWAYS_AFTER_POLL.remove(runnable);
-		}
-	}
-
-	/**
-	 * Adds a Runnable that is invoked only once at the beginning of the loop
-	 * in {@link #mainLoop(GLFWWindow, GLFWInputSystem)} such that it executes on the main thread,
-	 * but before the "always runnables" are invoked.
-	 * Runnables are executed in the order that they are added this way.
-	 * <p> HINT: You can invoke most things that require being on the "main thread" using this,
-	 * provided that the loop is active! 
-	 * @param runnable the runnable to add.
-	 * @see #mainLoop(GLFWWindow, GLFWInputSystem)
-	 */
-	public static void addRunnableOnce(Runnable runnable)
-	{
-		synchronized (RUNNABLE_MUTEX)
-		{
-			RUNNABLE_ONCE.add(runnable);
-		}
-	}
-
-	/**
-	 * Adds a Runnable that is invoked only once at the end of the loop
-	 * in {@link #mainLoop(GLFWWindow, GLFWInputSystem)} such that it executes on the main thread,
-	 * but only once the loop is escaped due to a closing window.
-	 * Runnables are executed in the order that they are added this way.
-	 * @param runnable the runnable to add.
-	 * @see #mainLoop(GLFWWindow, GLFWInputSystem)
-	 */
-	public static void addRunnableOnLoopEnd(Runnable runnable)
-	{
-		synchronized (RUNNABLE_MUTEX)
-		{
-			RUNNABLE_ON_END.add(runnable);
-		}
-	}
-
-	/**
-	 * Enters a loop that sets the window and input system, and polls for events and input 
-	 * until the window is closed.
-	 * When the window closes, the window is destroyed and GLFW is terminated.
-	 * <p>It is strongly advised that you use this method for starting the main loop
-	 * <p><b>This must only be called from the main thread to ensure that everything works properly!</b>
+	 * Creates a mechanism for looping on polling a GLFWWindow and InputSystem.
+	 * Already assumes that the {@link GLFWInputSystem} is attached ({@link GLFWInputSystem#attachToWindow(GLFWWindow)})
+	 * to the window for listening to events.
 	 * @param window the provided window handle.
 	 * @param inputSystem the input system to poll (for joystick input - mouse/keyboard is handled by the window).
-	 * @see #pollEvents()
-	 * @see GLFWWindow#isClosing()
-	 * @see GLFWInputSystem#pollJoysticks()
-	 * @see GLFWWindow#destroy()
-	 * @see #terminate()
+	 * @return a new main loop object.
 	 */
-	public static void mainLoop(GLFWWindow window, GLFWInputSystem inputSystem)
+	public static MainLoop createLoop(GLFWWindow window, GLFWInputSystem inputSystem)
 	{
-		Objects.requireNonNull(window);
-		Objects.requireNonNull(inputSystem);
+		return new MainLoop(window, inputSystem);
+	}
+	
+	/**
+	 * Main GLFW looper.
+	 * This class serves as a means to create a simple event listener loop
+	 * where the user can add hooks that need to run on the main thread before
+	 * or after event processing.
+	 */
+	public static class MainLoop implements Runnable
+	{
+		private GLFWWindow window;
+		private GLFWInputSystem inputSystem;
+		private boolean shutDownOnExit;
+		private long eventWaitMillis;
+		private long loopWaitMillis;
+		private Object runnableMutex;
+		private List<Runnable> runnableAlways;
+		private Deque<Runnable> runnableOnce;
+		private List<Runnable> runnableAlwaysAfterPoll;
+		private Deque<Runnable> runnableOnExit;
 		
-		// Enter loop until the window wants to close.
-		while (!window.isClosing())
+		/**
+		 * @param window the provided window handle.
+		 * @param inputSystem the input system to poll (for joystick input - mouse/keyboard is handled by the window).
+		 */
+		private MainLoop(GLFWWindow window, GLFWInputSystem inputSystem)
 		{
-			synchronized (RUNNABLE_MUTEX)
+			Objects.requireNonNull(window);
+			Objects.requireNonNull(inputSystem);
+			this.window = window;
+			this.inputSystem = inputSystem;
+			this.shutDownOnExit = false;
+			this.eventWaitMillis = 1L;
+			this.loopWaitMillis = 0L;
+			this.runnableAlways = new ArrayList<>(4);
+			this.runnableAlwaysAfterPoll = new ArrayList<>(4);
+			this.runnableOnce = new LinkedList<>();
+			this.runnableOnExit = new LinkedList<>();
+			this.runnableMutex = new Object();
+		}
+		
+		/**
+		 * Adds a Runnable that is invoked at the beginning of the loop
+		 * such that they execute on the main thread.
+		 * <p>
+		 * Runnables are executed in the order that they are added this way. 
+		 * @param runnable the runnable to add.
+		 */
+		public void addRunnableAlways(Runnable runnable)
+		{
+			synchronized (runnableMutex)
 			{
-				runAll(RUNNABLE_ONCE);
-				runAll(RUNNABLE_ALWAYS);
-				inputSystem.pollJoysticks();
-				awaitEvents(1);
-				runAll(RUNNABLE_ALWAYS_AFTER_POLL);
+				runnableAlways.add(runnable);
 			}
 		}
 
-		runAll(RUNNABLE_ON_END);
-		
-		// Disable joysticks (frees some callbacks).
-		inputSystem.disableJoysticks();
-		
-		// Destroy the window (its callbacks are freed).
-		window.destroy();
+		/**
+		 * Removes a Runnable that was added by {@link #addRunnableAlways(Runnable)}.
+		 * @param runnable the runnable to remove.
+		 */
+		public void removeRunnableAlways(Runnable runnable)
+		{
+			synchronized (runnableMutex)
+			{
+				runnableAlways.remove(runnable);
+			}
+		}
 
-		// Terminate GLFW (its callbacks are freed).
-		terminate();
+		/**
+		 * Adds a Runnable that is invoked at the end of the loop after events are polled
+		 * such that they execute on the main thread, after event/input polling.
+		 * <p>Runnables are executed in the order that they are added this way, after event/input polling.
+		 * @param runnable the runnable to add.
+		 */
+		public void addRunnableAlwaysAfterPoll(Runnable runnable)
+		{
+			synchronized (runnableMutex)
+			{
+				runnableAlwaysAfterPoll.add(runnable);
+			}
+		}
+
+		/**
+		 * Removes a Runnable that was added by {@link #addRunnableAlwaysAfterPoll(Runnable)}.
+		 * @param runnable the runnable to remove.
+		 */
+		public void removeRunnableAlwaysAfterPoll(Runnable runnable)
+		{
+			synchronized (runnableMutex)
+			{
+				runnableAlwaysAfterPoll.remove(runnable);
+			}
+		}
+
+		/**
+		 * Adds a Runnable that is invoked only once at the beginning of the loop
+		 * such that it executes on the main thread, but before the "always runnables" are invoked.
+		 * <p> Runnables are executed in the order that they are added this way.
+		 * <p> NOTE: You can invoke most things that require being on the "main thread" using this,
+		 * provided that the loop is active! 
+		 * @param runnable the runnable to add.
+		 */
+		public void addRunnableOnce(Runnable runnable)
+		{
+			synchronized (runnableMutex)
+			{
+				runnableOnce.add(runnable);
+			}
+		}
+
+		/**
+		 * Adds a Runnable that is invoked only once at the end of the loop
+		 * such that it executes on the main thread, but only once the loop 
+		 * is escaped due to a closing window.
+		 * <p>
+		 * Runnables are executed in the order that they are added this way.
+		 * @param runnable the runnable to add.
+		 */
+		public void addRunnableOnLoopExit(Runnable runnable)
+		{
+			synchronized (runnableMutex)
+			{
+				runnableOnExit.add(runnable);
+			}
+		}
+
+		/**
+		 * Sets the amount of time in milliseconds to wait for new events in the loop.
+		 * By the time this wait occurs, joystick events will have been polled.
+		 * Default is 1 millisecond.
+		 * @param eventWaitMillis the time to wait in milliseconds, or 0 or less for no wait.
+		 */
+		public void setEventWait(long eventWaitMillis)
+		{
+			this.eventWaitMillis = Math.max(0L, eventWaitMillis);
+		}
+		
+		/**
+		 * Sets the amount of time in milliseconds to wait at the end of the loop after
+		 * all hooks run and all events are polled.
+		 * Default is 0 milliseconds (no wait).
+		 * @param loopWaitMillis the time to wait in milliseconds, or 0 or less for no wait.
+		 */
+		public void setLoopWaitMillis(long loopWaitMillis)
+		{
+			this.loopWaitMillis = Math.max(0L, loopWaitMillis);
+		}
+		
+		/**
+		 * Sets if GLFW shuts down on exit.
+		 * If enabled, once the loop exits, the window is destroyed, input callbacks are freed,
+		 * and {@link GLFWContext#terminate()} is called.
+		 * Disabled by default.
+		 * @param shutDownOnExit true to enable, false to disable.
+		 */
+		public void setShutDownOnExit(boolean shutDownOnExit)
+		{
+			this.shutDownOnExit = shutDownOnExit;
+		}
+		
+		/**
+		 * Enters a loop that sets the window and input system, and polls for events and input 
+		 * until the window is closed. When the window closes, the loop exits.
+		 * <p>It is strongly advised that you use this method for starting the main event loop.
+		 * <p><b>This must only be called from the main thread to ensure that everything works properly!</b>
+		 * @see GLFWWindow#isClosing()
+		 * @see GLFWInputSystem#pollJoysticks()
+		 * @see GLFWContext#awaitEvents(long)
+		 */
+		public void run()
+		{
+			// Enter loop until the window wants to close.
+			while (!window.isClosing())
+			{
+				synchronized (runnableMutex)
+				{
+					runAll(runnableOnce);
+					runAll(runnableAlways);
+					inputSystem.pollJoysticks();
+					awaitEvents(eventWaitMillis);
+					runAll(runnableAlwaysAfterPoll);
+				}
+				loopWait(loopWaitMillis);
+			}
+		
+			runAll(runnableOnExit);
+			
+			if (shutDownOnExit)
+			{
+				// Disable joysticks (frees some callbacks).
+				inputSystem.disableJoysticks();
+				// Destroy the window (its callbacks are freed).
+				window.destroy();
+				// Terminate GLFW (its callbacks are freed).
+				terminate();
+			}
+		}
+
+		private static void loopWait(long millis)
+		{
+			try {
+				Thread.sleep(millis);
+			} catch (InterruptedException e) {
+				// Eat interrupt.
+			}
+		}
+
+		private static void runAll(List<Runnable> runnables)
+		{
+			for (int i = 0; i < runnables.size(); i++)
+				runnables.get(i).run();
+		}
+
+		private static void runAll(Deque<Runnable> runnables)
+		{
+			while (!runnables.isEmpty())
+				runnables.pollFirst().run();
+		}
+		
 	}
 	
-	private static void runAll(List<Runnable> runnables)
-	{
-		for (int i = 0; i < runnables.size(); i++)
-			runnables.get(i).run();
-	}
-
-	private static void runAll(Deque<Runnable> runnables)
-	{
-		while (!runnables.isEmpty())
-			runnables.pollFirst().run();
-	}
-
 }

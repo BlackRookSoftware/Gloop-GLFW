@@ -3,6 +3,13 @@ Gloop-GLFW (C) Black Rook Software
 by Matt Tropiano et al. (see AUTHORS.txt)
 
 
+Changed in 0.2.0
+----------------
+
+- `Added` Joystick events for discrete directions.
+- `Changed` GLFWContext's main loop method was turned into a separate object.
+
+
 Changed in 0.1.1
 ----------------
 

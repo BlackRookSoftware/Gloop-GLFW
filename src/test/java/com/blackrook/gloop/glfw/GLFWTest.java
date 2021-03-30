@@ -35,6 +35,7 @@ public final class GLFWTest
 {
 	private GLFWWindow window; 
 	private GLFWInputSystem inputSystem;
+	private GLFWContext.MainLoop mainLoop;
 
 	private void init()
 	{
@@ -169,8 +170,11 @@ public final class GLFWTest
 		// Enable v-sync
 		GLFWContext.setSwapInterval(1);
 
+		mainLoop = GLFWContext.createLoop(window, inputSystem);
+		mainLoop.setShutDownOnExit(true);
+		
 		// Swap buffers every poll loop.
-		GLFWContext.addRunnableAlways(()->window.swapBuffers());
+		mainLoop.addRunnableAlways(()->window.swapBuffers());
 
 		// Make the window visible
 		window.setVisible(true);
@@ -179,7 +183,7 @@ public final class GLFWTest
 	public void run() 
 	{
 		init();
-		GLFWContext.mainLoop(window, inputSystem);
+		mainLoop.run();
 	}
 	
 	public class Keyboard
@@ -197,22 +201,22 @@ public final class GLFWTest
 			switch (c)
 			{
 				case 'j':
-					GLFWContext.addRunnableOnce(()->inputSystem.enableJoysticks());
+					mainLoop.addRunnableOnce(()->inputSystem.enableJoysticks());
 					System.out.println("Joysticks enabled.");
 					break;
 				case 'J':
-					GLFWContext.addRunnableOnce(()->inputSystem.disableJoysticks());
+					mainLoop.addRunnableOnce(()->inputSystem.disableJoysticks());
 					System.out.println("Joysticks disabled.");
 					break;
 				case 'c':
-					GLFWContext.addRunnableOnce(()->{
+					mainLoop.addRunnableOnce(()->{
 						window.setRawMouseMotion(false);
 						window.setCursorMode(CursorMode.NORMAL);
 					});
 					System.out.println("Cursor enabled.");
 					break;
 				case 'C':
-					GLFWContext.addRunnableOnce(()->{
+					mainLoop.addRunnableOnce(()->{
 						window.setRawMouseMotion(true);
 						window.setCursorMode(CursorMode.DISABLED);
 					});
