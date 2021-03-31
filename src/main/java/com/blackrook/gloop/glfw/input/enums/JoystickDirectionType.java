@@ -18,7 +18,7 @@ public enum JoystickDirectionType
 {
 	NEUTRAL(0),
 	POSITIVE(1),
-	NEGATIVE(1);
+	NEGATIVE(-1);
 
 	private static final Map<Integer, JoystickDirectionType> VALUE_MAP = new HashMap<Integer, JoystickDirectionType>()
 	{

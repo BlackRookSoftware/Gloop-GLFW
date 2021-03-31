@@ -898,7 +898,7 @@ public class GLFWInputSystem
 			if (needInit())
 				initPreviousValues(axisData.capacity(), buttonData.capacity(), hatData.capacity());
 			for (int i = 0; i < axisData.capacity(); i++)
-				updateAxis(i, axisData.get(0));
+				updateAxis(i, axisData.get(i));
 			for (int i = 0; i < buttonData.capacity(); i++)
 				updateButton(i, buttonData.get(i) == GLFW.GLFW_PRESS);
 			for (int i = 0; i < hatData.capacity(); i++)
@@ -953,7 +953,7 @@ public class GLFWInputSystem
 			if (previousAxisValues[index] != value && Math.abs(value - previousAxisValues[index]) > parameters.getAxisPrecisionEpsilon())
 				fireJoystickAxisEvent(axisType, value);
 			previousAxisValues[index] = value;
-			
+
 			int directionId;
 			if (value < 0.0)
 				directionId = -1;

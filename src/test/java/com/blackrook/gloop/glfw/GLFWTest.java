@@ -17,6 +17,7 @@ import com.blackrook.gloop.glfw.GLFWWindow.WindowHints;
 import com.blackrook.gloop.glfw.GLFWWindow.WindowListener;
 import com.blackrook.gloop.glfw.input.annotation.OnJoystickAxisAction;
 import com.blackrook.gloop.glfw.input.annotation.OnJoystickButtonAction;
+import com.blackrook.gloop.glfw.input.annotation.OnJoystickDirectionAction;
 import com.blackrook.gloop.glfw.input.annotation.OnJoystickHatAction;
 import com.blackrook.gloop.glfw.input.annotation.OnKeyAction;
 import com.blackrook.gloop.glfw.input.annotation.OnKeyTypedAction;
@@ -26,6 +27,7 @@ import com.blackrook.gloop.glfw.input.annotation.OnMousePositionAction;
 import com.blackrook.gloop.glfw.input.annotation.OnMouseScrollAction;
 import com.blackrook.gloop.glfw.input.enums.JoystickAxisType;
 import com.blackrook.gloop.glfw.input.enums.JoystickButtonType;
+import com.blackrook.gloop.glfw.input.enums.JoystickDirectionType;
 import com.blackrook.gloop.glfw.input.enums.JoystickHatType;
 import com.blackrook.gloop.glfw.input.enums.KeyType;
 import com.blackrook.gloop.glfw.input.enums.MouseAxisType;
@@ -259,6 +261,12 @@ public final class GLFWTest
 			System.out.println("Axis " + type + ": " + value);
 		}
 
+		@OnJoystickDirectionAction
+		public void onDirection(JoystickAxisType type, JoystickDirectionType value)
+		{
+			System.out.println("Direction " + type + ": " + value);
+		}
+
 		@OnJoystickButtonAction
 		public void onButton(JoystickButtonType type, boolean pressed)
 		{
@@ -277,4 +285,5 @@ public final class GLFWTest
 		System.out.println("Hello LWJGL " + Version.getVersion() + "!");
 		(new GLFWTest()).run();
 	}
+	
 }
