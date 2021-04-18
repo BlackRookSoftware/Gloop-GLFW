@@ -132,7 +132,7 @@ public final class GLFWContext
 	
 	/**
 	 * Sets how many vertical blanks need to occur before a window buffer swap.
-	 * In layman's terms, this either sets VSync on (1) or off (0).
+	 * In layman's terms, this either sets VSync on (1 or greater) or off (0).
 	 * <p>This cannot be called until {@link #makeContextCurrent(GLFWWindow)} is called in this thread.
 	 * <p>This can be called from any thread.
 	 * @param blanks the amount of vertical blanks to wait.

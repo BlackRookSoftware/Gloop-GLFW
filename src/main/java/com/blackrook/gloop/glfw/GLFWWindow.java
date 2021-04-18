@@ -34,6 +34,39 @@ import com.blackrook.gloop.glfw.exception.GLFWException;
  */
 public class GLFWWindow extends GLFWHandle
 {
+	/** Internal listener for internal state. */
+	private static final WindowAdapter INTERNAL_ADAPTER = new WindowAdapter()
+	{
+		@Override
+		public void onPositionChange(GLFWWindow window, int x, int y) 
+		{
+			window.state.positionX = x;
+			window.state.positionY = y;
+		}
+		
+		@Override
+		public void onSizeChange(GLFWWindow window, int width, int height)
+		{
+			window.state.width = width;
+			window.state.height = height;
+		}
+		
+		@Override
+		public void onFramebufferChange(GLFWWindow window, int width, int height)
+		{
+			window.state.frameBufferWidth = width;
+			window.state.frameBufferHeight = height;
+		}
+		
+		@Override
+		public void onContentScaleChange(GLFWWindow window, float x, float y)
+		{
+			window.state.contentScaleX = x;
+			window.state.contentScaleY = y;
+		}
+		
+	};
+	
 	/** The memory address. */
 	private long handle;
 	/** Is this allocated? */
@@ -48,6 +81,9 @@ public class GLFWWindow extends GLFWHandle
 	/** List of file drop event listeners. */
 	private List<DropListener> dropListeners;
 
+	/** Window characteristic state set via callbacks. */
+	private State state;
+	
 	/**
 	 * Enum of window cursor modes.
 	 */
@@ -1059,6 +1095,86 @@ public class GLFWWindow extends GLFWHandle
 		}
 	}
 	
+	/**
+	 * Window characteristic state that can be fetched outside of the main thread.
+	 */
+	public static class State
+	{
+		private int positionX;
+		private int positionY;
+		private int width;
+		private int height;
+		private int frameBufferWidth;
+		private int frameBufferHeight;
+		private float contentScaleX;
+		private float contentScaleY;
+		
+		/**
+		 * @return the position of the window, X-coordinate.
+		 */
+		public int getPositionX()
+		{
+			return positionX;
+		}
+		
+		/**
+		 * @return the position of the window, Y-coordinate.
+		 */
+		public int getPositionY()
+		{
+			return positionY;
+		}
+		
+		/**
+		 * @return the width of the window itself, in pixels.
+		 */
+		public int getWidth()
+		{
+			return width;
+		}
+		
+		/**
+		 * @return the height of the window itself, in pixels.
+		 */
+		public int getHeight()
+		{
+			return height;
+		}
+		
+		/**
+		 * @return the width of the window framebuffer, in framebuffer viewport pixels.
+		 */
+		public int getFrameBufferWidth()
+		{
+			return frameBufferWidth;
+		}
+		
+		/**
+		 * @return the height of the window framebuffer, in framebuffer viewport pixels.
+		 */
+		public int getFrameBufferHeight()
+		{
+			return frameBufferHeight;
+		}
+		
+		/**
+		 * @return the content scaling value, X-axis.
+		 */
+		public float getContentScaleX()
+		{
+			return contentScaleX;
+		}
+		
+		/**
+		 * @return the content scaling value, Y-axis.
+		 */
+		public float getContentScaleY()
+		{
+			return contentScaleY;
+		}
+		
+	}
+	
 	// Set up structures.
 	private GLFWWindow()
 	{
@@ -1066,6 +1182,7 @@ public class GLFWWindow extends GLFWHandle
 		this.windowListeners = new ArrayList<>(4);
 		this.inputListeners = new ArrayList<>(4);
 		this.dropListeners = new ArrayList<>(4);
+		this.state = new State();
 	}
 	
 	// Accept and verify handle.
@@ -1220,6 +1337,8 @@ public class GLFWWindow extends GLFWHandle
 			for (int i = 0; i < inputListeners.size(); i++)
 				inputListeners.get(i).onScroll(this, x, y);
 		});
+		
+		addWindowListener(INTERNAL_ADAPTER);
 	}
 	
 	/**
@@ -1701,6 +1820,7 @@ public class GLFWWindow extends GLFWHandle
 	
 	/**
 	 * Sets the size limits of the content area of the specified window.
+	 * <p><b>This must only be called from the main thread.</b>
 	 * @param minwidth the minimum width in screen coordinates of the content area, or {@link WindowHints#DONT_CARE}
 	 * @param minheight the minimum height in screen coordinates of the content area, or {@link WindowHints#DONT_CARE}
 	 * @param maxwidth the maximum width in screen coordinates of the content area, or {@link WindowHints#DONT_CARE}
@@ -1842,6 +1962,16 @@ public class GLFWWindow extends GLFWHandle
 			GLFW.glfwGetWindowContentScale(handle, fbuf1, fbuf2);
 			return new PointF(fbuf1.get(0), fbuf2.get(0));
 		}
+	}
+	
+	/**
+	 * Gets a window characteristic state that can be fetched outside of the main polling thread.
+	 * The reference returned is the only instance - the values on this object can change frequently.
+	 * @return this window's characteristics, set from the last event poll.
+	 */
+	public State getState()
+	{
+		return state;
 	}
 	
 	/**

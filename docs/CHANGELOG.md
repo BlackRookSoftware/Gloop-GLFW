@@ -3,6 +3,12 @@ Gloop-GLFW (C) Black Rook Software
 by Matt Tropiano et al. (see AUTHORS.txt)
 
 
+Changed in 0.3.0
+----------------
+
+- `Added` GLFWWindow now has a queryable state that can be fetched outside of the main thread.
+
+
 Changed in 0.2.0
 ----------------
 
