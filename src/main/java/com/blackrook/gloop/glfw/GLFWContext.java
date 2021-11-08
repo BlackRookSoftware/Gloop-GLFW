@@ -43,7 +43,8 @@ public final class GLFWContext
 	{
 		if (initialized)
 			return;
-		
+		if (ERROR_STREAM_CALLBACK == null)
+			setErrorStream(System.err);
 		if (!GLFW.glfwInit())
 			throw new GLFWException("GLFW initialization failed!");
 
