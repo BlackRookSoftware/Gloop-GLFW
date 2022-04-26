@@ -423,6 +423,7 @@ public class GLFWWindow extends GLFWHandle
 
 	/**
 	 * Windows hints for the next window created.
+	 * <p> Don't modify these hints while a windows is being built with them, or undefined behavior may occur! 
 	 */
 	public static class WindowHints
 	{
@@ -1361,7 +1362,7 @@ public class GLFWWindow extends GLFWHandle
 	}
 		
 	/**
-	 * Creates a new GLFW window.
+	 * Creates a new GLFW window, sharing its OpenGL resources with another window. 
 	 * <p><b>This must only be called from the main thread.</b>
 	 * @param hints the hints to use for the window.
 	 * @param sharedWindow the window to share OpenGL resources with.
@@ -1401,7 +1402,7 @@ public class GLFWWindow extends GLFWHandle
 	}
 		
 	/**
-	 * Creates a new GLFW window.
+	 * Creates a new GLFW window, sharing its OpenGL resources with another window.
 	 * <p><b>This must only be called from the main thread.</b>
 	 * @param hints the hints to use for the window.
 	 * @param monitor the monitor to use for fullscreen mode.
