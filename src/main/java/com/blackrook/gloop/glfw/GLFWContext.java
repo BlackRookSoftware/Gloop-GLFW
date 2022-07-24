@@ -28,9 +28,9 @@ import com.blackrook.gloop.glfw.exception.GLFWException;
  */
 public final class GLFWContext 
 {
+	private static volatile boolean initialized = false;
+	private static final Object INITMUTEX = new Object();
 	private static GLFWErrorCallback ERROR_STREAM_CALLBACK;
-
-	private static boolean initialized = false;
 	private static Map<GLFWWindow, Thread> WINDOW_TO_CONTEXT_THREAD;
 	private static Map<Thread, GLFWWindow> CONTEXT_THREAD_TO_WINDOW;
 
@@ -39,19 +39,27 @@ public final class GLFWContext
 	 * If already initialized, this does nothing.
 	 * <p><b>This must only be called from the main thread.</b>
 	 */
-	static void init()
+	public static void init()
 	{
 		if (initialized)
 			return;
-		if (ERROR_STREAM_CALLBACK == null)
-			setErrorStream(System.err);
-		if (!GLFW.glfwInit())
-			throw new GLFWException("GLFW initialization failed!");
+		
+		synchronized (INITMUTEX)
+		{
+			// Early out for other threads.
+			if (initialized)
+				return;
+			
+			if (ERROR_STREAM_CALLBACK == null)
+				setErrorStream(System.err);
+			if (!GLFW.glfwInit())
+				throw new GLFWException("GLFW initialization failed!");
 
-		GLFW.glfwDefaultWindowHints();
-		WINDOW_TO_CONTEXT_THREAD = new HashMap<>(4);
-		CONTEXT_THREAD_TO_WINDOW = new HashMap<>(4);
-		initialized = true;
+			GLFW.glfwDefaultWindowHints();
+			WINDOW_TO_CONTEXT_THREAD = new HashMap<>(4);
+			CONTEXT_THREAD_TO_WINDOW = new HashMap<>(4);
+			initialized = true;
+		}
 	}
 	
 	/**
