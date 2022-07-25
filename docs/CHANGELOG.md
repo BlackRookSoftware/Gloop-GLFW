@@ -7,6 +7,7 @@ Changed in 0.4.0
 ----------------
 
 - `Added` MouseScrollType for scrolling actions.
+- `Removed` Some redundant enums for keys/buttons - they were affecting lookups.
 
 
 Changed in 0.3.0
