@@ -53,6 +53,7 @@ import com.blackrook.gloop.glfw.input.enums.JoystickHatType;
 import com.blackrook.gloop.glfw.input.enums.KeyType;
 import com.blackrook.gloop.glfw.input.enums.MouseAxisType;
 import com.blackrook.gloop.glfw.input.enums.MouseButtonType;
+import com.blackrook.gloop.glfw.input.enums.MouseScrollType;
 import com.blackrook.gloop.glfw.input.exception.InputDispatchException;
 import com.blackrook.gloop.glfw.input.exception.InputSetupException;
 
@@ -529,7 +530,7 @@ public class GLFWInputSystem
 	 * @param amount the scroll amount.
 	 * @return true if the event was handled by an object, false if not. 
 	 */
-	public boolean fireMouseScrollEvent(MouseAxisType type, double amount)
+	public boolean fireMouseScrollEvent(MouseScrollType type, double amount)
 	{
 		boolean handled = false;
 		if (mouseScrollHandlers != null) for (int i = 0; i < mouseScrollHandlers.size(); i++)
@@ -840,8 +841,14 @@ public class GLFWInputSystem
 		@Override
 		public void onScroll(GLFWWindow window, double x, double y)
 		{
-			fireMouseScrollEvent(MouseAxisType.X, x);
-			fireMouseScrollEvent(MouseAxisType.Y, y);
+			if (x < 0)
+				fireMouseScrollEvent(MouseScrollType.LEFT, Math.abs(x));
+			else if (x > 0)
+				fireMouseScrollEvent(MouseScrollType.RIGHT, Math.abs(x));
+			if (y > 0)
+				fireMouseScrollEvent(MouseScrollType.UP, Math.abs(y));
+			else if (y < 0)
+				fireMouseScrollEvent(MouseScrollType.DOWN, Math.abs(y));
 		}
 		
 	}
@@ -1066,8 +1073,8 @@ public class GLFWInputSystem
 		private Map<MouseAxisType, Method> mouseAxisMethods;
 		private Map<MouseAxisType, Field> mousePositionFields;
 		private Map<MouseAxisType, Method> mousePositionMethods;
-		private Map<MouseAxisType, Field> mouseScrollFields;
-		private Map<MouseAxisType, Method> mouseScrollMethods;
+		private Map<MouseScrollType, Field> mouseScrollFields;
+		private Map<MouseScrollType, Method> mouseScrollMethods;
 		private Method keyEventMethod;
 		private Method keyTypedEventMethod;
 		private Method mouseButtonEventMethod;
@@ -1375,14 +1382,14 @@ public class GLFWInputSystem
 		
 		/**
 		 * Fires a mouse scroll event to this object.
-		 * @param type the mouse axis type.
+		 * @param type the mouse scroll direction type.
 		 * @param amount the scroll amount on the axis.
 		 * @return true if handled by this object, false if not. 
 		 * @throws InputDispatchException if a field or method could not be invoked.
 		 */
-		public boolean fireMouseScroll(MouseAxisType type, double amount)
+		public boolean fireMouseScroll(MouseScrollType type, double amount)
 		{
-			return fireEvent(mouseScrollFields, mouseScrollMethods, mouseScrollEventMethod, type, amount);
+			return fireEvent(mouseScrollFields, mouseScrollMethods, mouseScrollEventMethod, type, Math.abs(amount));
 		}
 		
 		/**
@@ -1701,7 +1708,7 @@ public class GLFWInputSystem
 		// See @OnMouseWheelAction.
 		private static OnMouseScrollAction isValidMouseWheelEventMethod(Method method)
 		{
-			return checkInputMethodAnnotationType(method, OnMouseScrollAction.class, MouseAxisType.class, Double.TYPE);
+			return checkInputMethodAnnotationType(method, OnMouseScrollAction.class, MouseScrollType.class, Double.TYPE);
 		}
 
 		// Checks if a method is suitable for using as a target for joystick button actions.

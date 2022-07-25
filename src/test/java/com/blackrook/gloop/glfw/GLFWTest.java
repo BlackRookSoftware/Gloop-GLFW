@@ -32,6 +32,7 @@ import com.blackrook.gloop.glfw.input.enums.JoystickHatType;
 import com.blackrook.gloop.glfw.input.enums.KeyType;
 import com.blackrook.gloop.glfw.input.enums.MouseAxisType;
 import com.blackrook.gloop.glfw.input.enums.MouseButtonType;
+import com.blackrook.gloop.glfw.input.enums.MouseScrollType;
 
 public final class GLFWTest 
 {
@@ -246,7 +247,7 @@ public final class GLFWTest
 		}
 
 		@OnMouseScrollAction
-		public void onMouseScroll(MouseAxisType type, double amount)
+		public void onMouseScroll(MouseScrollType type, double amount)
 		{
 			System.out.println("Mouse Scroll " + type + ": " + amount);
 		}

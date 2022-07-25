@@ -12,7 +12,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import com.blackrook.gloop.glfw.input.enums.MouseAxisType;
+import com.blackrook.gloop.glfw.input.enums.MouseScrollType;
 
 /**
  * Annotates a field that sets if a mouse wheel is moved by a certain amount of units.
@@ -27,5 +27,5 @@ public @interface InputMouseScroll
 	/**
 	 * @return the corresponding mouse scroll axis.
 	 */
-	MouseAxisType value();
+	MouseScrollType value();
 }

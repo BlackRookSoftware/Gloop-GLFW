@@ -3,6 +3,12 @@ Gloop-GLFW (C) Black Rook Software
 by Matt Tropiano et al. (see AUTHORS.txt)
 
 
+Changed in 0.4.0
+----------------
+
+- `Added` MouseScrollType for scrolling actions.
+
+
 Changed in 0.3.0
 ----------------
 
