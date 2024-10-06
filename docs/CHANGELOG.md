@@ -6,6 +6,7 @@ by Matt Tropiano et al. (see AUTHORS.txt)
 Changed in 0.4.0
 ----------------
 
+- `Fixed` GLFWWindow.setAspectRatio() did not set the aspect ratio.
 - `Added` MouseScrollType for scrolling actions.
 - `Removed` Some redundant enums for keys/buttons - they were affecting lookups.
 

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2020-2021 Black Rook Software
+ * Copyright (c) 2020-2024 Black Rook Software
  * This program and the accompanying materials are made available under the 
  * terms of the GNU Lesser Public License v2.1 which accompanies this 
  * distribution, and is available at 
@@ -1861,7 +1861,7 @@ public class GLFWWindow extends GLFWHandle
 	 */
 	public void setAspectRatio(int numer, int denom) 
 	{
-		GLFW.glfwSetWindowAspectRatio(handle, 0, 0);
+		GLFW.glfwSetWindowAspectRatio(handle, numer, denom);
 	}
 	
 	/**

@@ -1,7 +1,7 @@
 # Black Rook Gloop-GLFW
 Or... (LightWeight Java) **G**ame **L**ibrary **O**bject-**O**riented **P**aradigm for **GLFW**
 
-Copyright (c) 2020-2021 Black Rook Software.  
+Copyright (c) 2020-2024 Black Rook Software.  
 [https://github.com/BlackRookSoftware/Gloop-GLFW](https://github.com/BlackRookSoftware/Gloop-GLFW)
 
 [Latest Release](https://github.com/BlackRookSoftware/Gloop-GLFW/releases/latest)
