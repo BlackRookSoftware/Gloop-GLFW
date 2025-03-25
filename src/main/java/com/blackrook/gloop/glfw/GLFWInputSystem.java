@@ -861,9 +861,9 @@ public class GLFWInputSystem
 		/** Parameters for this object. */
 		private JoystickInputParameters parameters;
 		/** List of objects that handle joystick buttons. */
-		private List<InputObjectProfile> JoystickButtonHandlers;
+		private List<InputObjectProfile> joystickButtonHandlers;
 		/** List of objects that handle joystick axes. */
-		private List<InputObjectProfile> JoystickAxisHandlers;
+		private List<InputObjectProfile> joystickAxisHandlers;
 		/** List of objects that handle joystick hats. */
 		private List<InputObjectProfile> joystickHatHandlers;
 		/** List of objects that handle joystick hats. */
@@ -877,17 +877,17 @@ public class GLFWInputSystem
 		private JoystickInputObject(JoystickInputParameters parameters, Object instance)
 		{
 			this.parameters = parameters;
-			this.JoystickButtonHandlers = null;
-			this.JoystickAxisHandlers = null;
+			this.joystickButtonHandlers = null;
+			this.joystickAxisHandlers = null;
 			this.joystickHatHandlers = null;
 			this.joystickDirectionHandlers = null;
 	
 			InputObjectProfile profile = new InputObjectProfile(instance);
 	
 			if (profile.handlesJoystickButtons())
-				(JoystickButtonHandlers = makeIfNull(JoystickButtonHandlers)).add(profile);
+				(joystickButtonHandlers = makeIfNull(joystickButtonHandlers)).add(profile);
 			if (profile.handlesJoystickAxes())
-				(JoystickAxisHandlers = makeIfNull(JoystickAxisHandlers)).add(profile);
+				(joystickAxisHandlers = makeIfNull(joystickAxisHandlers)).add(profile);
 			if (profile.handlesJoystickHats())
 				(joystickHatHandlers = makeIfNull(joystickHatHandlers)).add(profile);
 			if (profile.handlesJoystickDirections())
@@ -1008,8 +1008,8 @@ public class GLFWInputSystem
 		public boolean fireJoystickButtonEvent(JoystickButtonType type, boolean pressed)
 		{
 			boolean handled = false;
-			if (JoystickButtonHandlers != null) for (int i = 0; i < JoystickButtonHandlers.size(); i++)
-				handled |= JoystickButtonHandlers.get(i).fireJoystickButton(type, pressed);
+			if (joystickButtonHandlers != null) for (int i = 0; i < joystickButtonHandlers.size(); i++)
+				handled |= joystickButtonHandlers.get(i).fireJoystickButton(type, pressed);
 			return handled;
 		}
 		
@@ -1022,8 +1022,8 @@ public class GLFWInputSystem
 		public boolean fireJoystickAxisEvent(JoystickAxisType type, double amount)
 		{
 			boolean handled = false;
-			if (JoystickAxisHandlers != null) for (int i = 0; i < JoystickAxisHandlers.size(); i++)
-				handled |= JoystickAxisHandlers.get(i).fireJoystickAxis(type, amount);
+			if (joystickAxisHandlers != null) for (int i = 0; i < joystickAxisHandlers.size(); i++)
+				handled |= joystickAxisHandlers.get(i).fireJoystickAxis(type, amount);
 			return handled;
 		}
 		
@@ -1082,9 +1082,9 @@ public class GLFWInputSystem
 		private Method mousePositionEventMethod;
 		private Method mouseScrollEventMethod;
 		
-		private Map<JoystickButtonType, Field> JoystickButtonFields;
+		private Map<JoystickButtonType, Field> joystickButtonFields;
 		private Map<JoystickButtonType, Method> joystickButtonMethods;
-		private Map<JoystickAxisType, Field> JoystickAxisFields;
+		private Map<JoystickAxisType, Field> joystickAxisFields;
 		private Map<JoystickAxisType, Method> joystickAxisMethods;
 		private Map<Integer, Field> joystickHatFields;
 		private Map<Integer, Method> joystickHatMethods;
@@ -1131,12 +1131,12 @@ public class GLFWInputSystem
 				annotationFill(
 					isValidJoystickButtonInputField(f), 
 					(anno)->anno.value(), 
-					(value)->(JoystickButtonFields = makeIfNull(JoystickButtonFields)).put(value, f)
+					(value)->(joystickButtonFields = makeIfNull(joystickButtonFields)).put(value, f)
 				);
 				annotationFill(
 					isValidJoystickAxisInputField(f), 
 					(anno)->anno.value(), 
-					(value)->(JoystickAxisFields = makeIfNull(JoystickAxisFields)).put(value, f)
+					(value)->(joystickAxisFields = makeIfNull(joystickAxisFields)).put(value, f)
 				);
 				annotationFill(
 					isValidJoystickDirectionInputField(f), 
@@ -1286,7 +1286,7 @@ public class GLFWInputSystem
 		 */
 		public boolean handlesJoystickButtons()
 		{
-			return !isEmpty(JoystickButtonFields) || !isEmpty(joystickButtonMethods) || !isEmpty(joystickButtonEventMethod);
+			return !isEmpty(joystickButtonFields) || !isEmpty(joystickButtonMethods) || !isEmpty(joystickButtonEventMethod);
 		}
 		
 		/**
@@ -1295,7 +1295,7 @@ public class GLFWInputSystem
 		 */
 		public boolean handlesJoystickAxes()
 		{
-			return !isEmpty(JoystickAxisFields) || !isEmpty(joystickAxisMethods) || !isEmpty(joystickAxisEventMethod);
+			return !isEmpty(joystickAxisFields) || !isEmpty(joystickAxisMethods) || !isEmpty(joystickAxisEventMethod);
 		}
 		
 		/**
@@ -1401,7 +1401,7 @@ public class GLFWInputSystem
 		 */
 		public boolean fireJoystickButton(JoystickButtonType type, boolean pressed)
 		{
-			return fireEvent(JoystickButtonFields, joystickButtonMethods, joystickButtonEventMethod, type, pressed);
+			return fireEvent(joystickButtonFields, joystickButtonMethods, joystickButtonEventMethod, type, pressed);
 		}
 		
 		/**
@@ -1413,7 +1413,7 @@ public class GLFWInputSystem
 		 */
 		public boolean fireJoystickAxis(JoystickAxisType type, double value)
 		{
-			return fireEvent(JoystickAxisFields, joystickAxisMethods, joystickAxisEventMethod, type, value);
+			return fireEvent(joystickAxisFields, joystickAxisMethods, joystickAxisEventMethod, type, value);
 		}
 		
 		/**
