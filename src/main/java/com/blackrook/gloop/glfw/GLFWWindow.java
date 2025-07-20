@@ -972,9 +972,9 @@ public class GLFWWindow extends GLFWHandle
 
 		/**
 		 * Sets which OpenGL profile to create the context for.
- 		 * If requesting an OpenGL version below 3.2, {@link OpenGLProfile#ANY_PROFILE} must be used. 
- 		 * If OpenGL ES is requested, this hint is ignored. 
- 		 * @param openGLProfile the profile to create.
+		 * If requesting an OpenGL version below 3.2, {@link OpenGLProfile#ANY_PROFILE} must be used. 
+		 * If OpenGL ES is requested, this hint is ignored. 
+		 * @param openGLProfile the profile to create.
 		 * @return itself, for chaining calls.
 		 */
 		public WindowHints setOpenGLProfile(OpenGLProfile openGLProfile)
@@ -1856,8 +1856,8 @@ public class GLFWWindow extends GLFWHandle
 	/**
 	 * Sets this window's aspect ratio limits.
 	 * <p><b>This must only be called from the main thread.</b>
-     * @param numer the numerator of the desired aspect ratio, or {@link WindowHints#DONT_CARE}
-     * @param denom the denominator of the desired aspect ratio, or {@link WindowHints#DONT_CARE}
+	 * @param numer the numerator of the desired aspect ratio, or {@link WindowHints#DONT_CARE}
+	 * @param denom the denominator of the desired aspect ratio, or {@link WindowHints#DONT_CARE}
 	 */
 	public void setAspectRatio(int numer, int denom) 
 	{
@@ -1867,7 +1867,7 @@ public class GLFWWindow extends GLFWHandle
 	/**
 	 * Sets if this window is decorated (has shell bordering).
 	 * <p><b>This must only be called from the main thread.</b>
-     * @param value true if so, false if not.
+	 * @param value true if so, false if not.
 	 */
 	public void setDecorated(boolean value) 
 	{
@@ -1877,7 +1877,7 @@ public class GLFWWindow extends GLFWHandle
 	/**
 	 * Sets if this window is resizable (via user, not program).
 	 * <p><b>This must only be called from the main thread.</b>
-     * @param value true if so, false if not.
+	 * @param value true if so, false if not.
 	 */
 	public void setResizable(boolean value) 
 	{
