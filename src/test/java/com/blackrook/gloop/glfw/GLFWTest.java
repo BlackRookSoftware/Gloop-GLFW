@@ -13,7 +13,6 @@ import org.lwjgl.Version;
 
 import com.blackrook.gloop.glfw.GLFWInputSystem.JoystickConnectionListener;
 import com.blackrook.gloop.glfw.GLFWWindow.CursorMode;
-import com.blackrook.gloop.glfw.GLFWWindow.WindowHints;
 import com.blackrook.gloop.glfw.GLFWWindow.WindowListener;
 import com.blackrook.gloop.glfw.input.annotation.OnJoystickAxisAction;
 import com.blackrook.gloop.glfw.input.annotation.OnJoystickButtonAction;
@@ -47,7 +46,7 @@ public final class GLFWTest
 		GLFWContext.setErrorStream(System.err);
 		
 		// Configure GLFW
-		WindowHints hints = (new WindowHints())
+		GLFWWindowHints hints = (new GLFWWindowHints())
 			.setVisible(false)
 			.setResizable(true);
 		
