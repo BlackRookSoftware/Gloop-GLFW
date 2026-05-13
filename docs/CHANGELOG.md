@@ -8,6 +8,7 @@ Changed in 0.4.0
 
 - `Fixed` GLFWWindow.setAspectRatio() did not set the aspect ratio.
 - `Added` MouseScrollType for scrolling actions.
+- `Changed` GLFWWindow.WindowHints are now GLFWWindowHints.
 - `Removed` Some redundant enums for keys/buttons - they were affecting lookups.
 
 
